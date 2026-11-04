@@ -1,7 +1,18 @@
 <?php
 
+use App\Http\Controllers\Auth\LoginController;
+use App\Models\Areas;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('home');
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [LoginController::class, 'index'])->name('login');
+    Route::post('/login', [LoginController::class, 'store'])->name('login.store');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
+
+    Route::get('/', function () {
+        return view('home');
+    })->name('home');
 });
