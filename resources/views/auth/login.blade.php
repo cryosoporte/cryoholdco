@@ -13,8 +13,8 @@
         <div class="w-full max-w-sm">
             <div class="mb-8 text-center">
                 <div class="flex flex-col gap-4 justify-center items-center">
-                    <img class="w-full max-w-[150px]" src="{{ asset('img/criocord_logo.png') }}" alt="Logo CrioCord" />
-                    <img class="w-full max-w-[150px]" src="{{ asset('img/lazo_de_vida_logo.png') }}" alt="Logo Lazo de Vida" />
+                    <img class="w-full max-w-[150px]" src="{{ asset('images/logos/criocord_logo.png') }}" alt="Logo CrioCord" />
+                    <img class="w-full max-w-[150px]" src="{{ asset('images/logos/lazo_de_vida_logo.png') }}" alt="Logo Lazo de Vida" />
                 </div>
 
                 <h1 class="sr-only">{{ config('app.name') }}</h1>

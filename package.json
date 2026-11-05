@@ -7,13 +7,41 @@
         "dev": "vite"
     },
     "devDependencies": {
+        "@inertiajs/vite": "^3.11.0",
         "@tailwindcss/vite": "^4.0.0",
+        "@types/node": "^26.6.6",
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
+        "@vitejs/plugin-react": "^6.2.1",
         "concurrently": "^10.0.3",
         "laravel-vite-plugin": "^3.1",
         "tailwindcss": "^4.0.0",
+        "typescript": "^7.0.2",
         "vite": "^8.0.0"
     },
     "optionalDependencies": {
         "@laravel/multiplex": "^0.4.1"
+    },
+    "dependencies": {
+        "@base-ui/react": "^1.9.0",
+        "@dnd-kit/core": "^6.3.1",
+        "@dnd-kit/modifiers": "^9.0.0",
+        "@dnd-kit/sortable": "^10.0.0",
+        "@dnd-kit/utilities": "^3.2.2",
+        "@fontsource-variable/geist": "^5.3.0",
+        "@inertiajs/react": "^3.11.0",
+        "@tanstack/react-table": "^9.3.1",
+        "class-variance-authority": "^0.7.1",
+        "cn": "^0.5.2",
+        "lucide-react": "^1.68.0",
+        "next-themes": "^0.4.6",
+        "react": "^19.3.1",
+        "react-dom": "^19.3.1",
+        "recharts": "^3.8.0",
+        "shadcn": "^4.23.0",
+        "sonner": "^2.0.8",
+        "tw-animate-css": "^1.4.0",
+        "ziggy-js": "^2.6.5",
+        "zod": "^4.6.7"
     }
 }
