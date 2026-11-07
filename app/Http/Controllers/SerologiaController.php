@@ -18,7 +18,7 @@ class SerologiaController extends Controller
     {
         $datos = $request->validate([
             'buscar' => ['nullable', 'string', 'max:100'],
-            'estado' => ['nullable', 'in:pendiente,tomada,recibido'],
+            'estado' => ['nullable', 'in:pendiente,tomada,recibido,por_vencer'],
             'asesor' => ['nullable', 'string', 'max:100'],
         ]);
 
@@ -89,6 +89,10 @@ class SerologiaController extends Controller
                 $query->where('asesor_dni', $asesor);
             });
 
+
+        $hoy = CarbonImmutable::today('America/Lima');
+        $fecha_hace_7_dias = $hoy->subDays(7);
+
         $conteos = [
             'pendiente' => (clone $base)
                 ->whereNull('serologia')
@@ -101,9 +105,13 @@ class SerologiaController extends Controller
             'recibido' => (clone $base)
                 ->where('serologia', 'S')
                 ->count(),
+            'por_vencer' => (clone $base)
+                ->whereNull('serologia')
+                ->whereNull('fecha_toma')
+                ->whereNotNull('fecha_nacimiento')
+                ->whereBetween('fecha_nacimiento', [$fecha_hace_7_dias->toDateString(), $hoy->toDateString()])
+                ->count(),
         ];
-
-        $hoy = CarbonImmutable::today('America/Lima');
 
         $resultados = (clone $base)
             ->when($estado === 'pendiente', function (Builder $query): void {
@@ -116,6 +124,12 @@ class SerologiaController extends Controller
             })
             ->when($estado === 'recibido', function (Builder $query): void {
                 $query->where('serologia', 'S');
+            })
+            ->when($estado === 'por_vencer', function (Builder $query) use ($fecha_hace_7_dias, $hoy): void {
+                $query->whereNull('serologia')
+                    ->whereNull('fecha_toma')
+                    ->whereNotNull('fecha_nacimiento')
+                    ->whereBetween('fecha_nacimiento', [$fecha_hace_7_dias->toDateString(), $hoy->toDateString()]);
             })
             ->orderBy('nombre')
             ->orderBy('numero_base')

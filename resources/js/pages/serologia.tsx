@@ -61,11 +61,18 @@ type ResultadosPaginados = {
     next_page_url: string | null
 }
 
-type EstadoSerologia = "pendiente" | "tomada" | "recibido"
+type EstadoSerologia = "por_vencer" | "pendiente" | "tomada" | "recibido"
 
-const opcionesEstado: EstadoSerologia[] = ["pendiente", "tomada", "recibido"]
+const opcionesEstado: EstadoSerologia[] = ["por_vencer", "pendiente", "tomada", "recibido"]
 
 const estados = {
+    por_vencer: {
+        texto: "Por vencer",
+        clase: "bg-red-50 text-red-700 border-red-700",
+        descripcion: "7 días o menos",
+        borde: "border-l-red-500",
+        seleccion: "ring-red-600 bg-red-50 dark:bg-red-950/30",
+    },
     recibido: {
         texto: "Resultado recibido",
         clase: "bg-green-50 text-green-700 border-green-700",
@@ -204,7 +211,7 @@ export default function Serologia({
         <AppLayout title="Operaciones - Serología">
             <h1 className="text-2xl font-semibold">Serología de clientes</h1>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" role="group" aria-label="Filtrar por estado">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" role="group" aria-label="Filtrar por estado">
                 {opcionesEstado.map((opcion) => {
                     const configuracion = estados[opcion]
                     const seleccionado = estadoSeleccionado === opcion
