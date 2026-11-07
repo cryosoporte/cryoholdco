@@ -24,6 +24,15 @@ import { route } from "ziggy-js"
 
 import { Badge } from "@/components/ui/badge"
 
+type Plazo = {
+    situacion: "sin_fecha" | "aun_no_abre" | "en_plazo" | "por_vencer" | "fuera_de_plazo" | "tomada" | "recibido"
+    fecha_apertura: string | null
+    fecha_limite: string | null
+    dias_restantes: number | null
+    porcentaje_transcurrido: number | null
+    texto: string
+}
+
 type Resultado = {
     no_cia: string
     numero_base: string | null
@@ -34,6 +43,8 @@ type Resultado = {
     fecha_resultado: string | null
     asesor_dni: string | null
     asesor_nombre: string | null
+    fecha_nacimiento: string | null
+    plazo: Plazo | null
 }
 
 type Asesor = {
@@ -76,6 +87,54 @@ const estados = {
         borde: "border-l-yellow-500",
         seleccion: "ring-yellow-600 bg-yellow-50 dark:bg-yellow-950/30",
     },
+}
+
+const avisosPlazo = {
+    sin_fecha: null,
+    en_plazo: null,
+    tomada: null,
+    recibido: null,
+    aun_no_abre: {
+        texto: "Aún no abre",
+        clase: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-200",
+    },
+    por_vencer: {
+        texto: "Por vencer",
+        clase: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-200",
+    },
+    fuera_de_plazo: {
+        texto: "Fuera de plazo",
+        clase: "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-200",
+    },
+}
+
+function PlazoCliente({ plazo }: { plazo: Plazo | null }) {
+    if (plazo === null) return <span className="text-muted-foreground">—</span>
+
+    return (
+        <div className="min-w-44 space-y-2 py-1">
+            {plazo.porcentaje_transcurrido !== null && (
+                <div
+                    role="progressbar"
+                    aria-label="Plazo para la toma de muestra"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={plazo.porcentaje_transcurrido}
+                    aria-valuetext={plazo.texto}
+                    className="relative h-1.5 w-44 rounded-full bg-indigo-200 dark:bg-indigo-900"
+                >
+                    <div className="absolute inset-x-0.5 top-1/2">
+                        <span
+                            aria-hidden="true"
+                            className="absolute h-4 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-800 dark:bg-slate-100"
+                            style={{ left: `${plazo.porcentaje_transcurrido}%` }}
+                        />
+                    </div>
+                </div>
+            )}
+            <p className="text-xs text-muted-foreground">{plazo.texto}</p>
+        </div>
+    )
 }
 
 export default function Serologia({
@@ -223,6 +282,7 @@ export default function Serologia({
                                         : fila.fecha_toma !== null
                                             ? estados.tomada
                                             : estados.pendiente
+                        const avisoPlazo = fila.plazo ? avisosPlazo[fila.plazo.situacion] : null
 
                         return (
                             <TableRow
@@ -236,6 +296,7 @@ export default function Serologia({
                                     fila.fecha_resultado,
                                     fila.asesor_dni,
                                     fila.asesor_nombre,
+                                    fila.fecha_nacimiento,
                                 ])}
                             >
                                 <TableCell>
@@ -247,14 +308,23 @@ export default function Serologia({
                                     </p>
                                 </TableCell>
                                 <TableCell>{fila.asesor_nombre ?? fila.asesor_dni ?? "Sin asesor"}</TableCell>
-                                <TableCell>Plazo...</TableCell>
+                                <TableCell><PlazoCliente plazo={fila.plazo} /></TableCell>
                                 <TableCell>
-                                    <Badge className={`${estado.clase} py-3 px-3`}>
-                                        {estado.texto}
-                                    </Badge>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Badge className={`${estado.clase} py-3 px-3`}>
+                                            {estado.texto}
+                                        </Badge>
+                                        {avisoPlazo && (
+                                            <Badge className={`${avisoPlazo.clase} rounded-md px-2 py-0.5 text-xs`}>
+                                                {avisoPlazo.texto}
+                                            </Badge>
+                                        )}
+                                    </div>
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="outline" className="cursor-pointer">Enviar recordatorio</Button>
+                                    {fila.serologia === null && fila.fecha_toma === null && (
+                                        <Button variant="outline" className="cursor-pointer">Enviar recordatorio</Button>
+                                    )}
                                 </TableCell>
                             </TableRow>
                         )
@@ -281,6 +351,7 @@ export default function Serologia({
                     <Button
                         variant="outline"
                         disabled={actualizando || !resultados.prev_page_url}
+                        className="cursor-pointer"
                         onClick={() => {
                             if (resultados.prev_page_url) {
                                 router.get(resultados.prev_page_url, {}, {
@@ -298,6 +369,7 @@ export default function Serologia({
                     <Button
                         variant="outline"
                         disabled={actualizando || !resultados.next_page_url}
+                        className="cursor-pointer"
                         onClick={() => {
                             if (resultados.next_page_url) {
                                 router.get(resultados.next_page_url, {}, {

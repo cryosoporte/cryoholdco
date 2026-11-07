@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\PlazoSerologia;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -10,6 +12,8 @@ use Inertia\Response;
 
 class SerologiaController extends Controller
 {
+    public function __construct(private readonly PlazoSerologia $plazoSerologia) {}
+
     public function index(Request $request): Response
     {
         $datos = $request->validate([
@@ -56,6 +60,9 @@ class SerologiaController extends Controller
                 'U.NOMBRES as asesor_nombre',
             ])
             ->selectRaw('CAST(C1.VENDEDOR AS VARCHAR2(100)) AS asesor_dni')
+            ->selectRaw("TO_CHAR(C1.FECHA_NACIMIENTO, 'YYYY-MM-DD') AS fecha_nacimiento")
+            ->selectRaw("TO_CHAR(C4.FECHA_TOMA, 'YYYY-MM-DD') AS fecha_toma_dia")
+            ->selectRaw("TO_CHAR(C4.FECHA_RESULTADO, 'YYYY-MM-DD') AS fecha_resultado_dia")
             ->distinct();
 
         $asesores = DB::query()
@@ -96,6 +103,8 @@ class SerologiaController extends Controller
                 ->count(),
         ];
 
+        $hoy = CarbonImmutable::today('America/Lima');
+
         $resultados = (clone $base)
             ->when($estado === 'pendiente', function (Builder $query): void {
                 $query->whereNull('serologia')
@@ -116,8 +125,21 @@ class SerologiaController extends Controller
             ->orderBy('fecha_resultado')
             ->orderBy('asesor_dni')
             ->orderBy('asesor_nombre')
+            ->orderBy('fecha_nacimiento')
             ->paginate(10)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(function (object $fila) use ($hoy): object {
+                $fila->plazo = $this->plazoSerologia->paraRegistro(
+                    serologia: $fila->serologia,
+                    fechaNacimiento: $fila->fecha_nacimiento,
+                    fechaToma: $fila->fecha_toma_dia,
+                    fechaResultado: $fila->fecha_resultado_dia,
+                    hoy: $hoy,
+                );
+                unset($fila->fecha_toma_dia, $fila->fecha_resultado_dia);
+
+                return $fila;
+            });
 
         return Inertia::render('serologia', [
             'resultados' => $resultados,
