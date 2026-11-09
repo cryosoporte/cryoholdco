@@ -1,14 +1,14 @@
-import type { CSSProperties, ReactNode } from "react"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import type { CSSProperties, ReactNode } from "react";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SiteHeader } from "@/components/site-header";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 export default function AppLayout({
     children,
     title,
-}: { 
-    children: ReactNode
-    title: string
+}: {
+    children: ReactNode;
+    title: string;
 }) {
     return (
         <SidebarProvider
@@ -29,5 +29,5 @@ export default function AppLayout({
                 </main>
             </SidebarInset>
         </SidebarProvider>
-    )
+    );
 }

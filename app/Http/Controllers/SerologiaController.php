@@ -140,7 +140,7 @@ class SerologiaController extends Controller
             ->orderBy('asesor_dni')
             ->orderBy('asesor_nombre')
             ->orderBy('fecha_nacimiento')
-            ->paginate(10)
+            ->paginate(20)
             ->withQueryString()
             ->through(function (object $fila) use ($hoy): object {
                 $fila->plazo = $this->plazoSerologia->paraRegistro(
