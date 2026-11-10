@@ -12,11 +12,12 @@
 <body class="min-h-full bg-slate-50 font-sans text-slate-800 antialiased">
 
     <header class="border-b border-slate-200 bg-white">
-        <div class="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+        <div
+            class="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
 
             <div class="flex min-w-0 items-center gap-3">
-                <img src="{{ asset('img/criocord_logo.png') }}" alt="Criocord"
-                     class="h-6 w-auto max-w-[110px] shrink-0 sm:h-9 sm:max-w-none">
+                <img src="{{ asset('') }}" alt="Criocord"
+                    class="h-6 w-auto max-w-[110px] shrink-0 sm:h-9 sm:max-w-none">
                 <span class="hidden text-xs font-semibold tracking-wider text-slate-400 uppercase sm:inline">
                     Mostrador
                 </span>
@@ -27,12 +28,12 @@
                 empresa, los dos salen del usuario y este bloque se borra.
             --}}
             <form method="POST" action="{{ route('laboratorio.sede') }}" data-form-sede
-                  class="flex flex-wrap items-center gap-2">
+                class="flex flex-wrap items-center gap-2">
                 @csrf
 
                 <label for="laboratorio" class="sr-only">Laboratorio</label>
                 <select id="laboratorio" name="laboratorio"
-                        class="rounded-lg border border-slate-300 bg-white py-1.5 pr-8 pl-3 text-sm font-medium text-slate-700 focus:border-criocord-500 focus:ring-3 focus:ring-criocord-100 focus:outline-none">
+                    class="rounded-lg border border-slate-300 bg-white py-1.5 pr-8 pl-3 text-sm font-medium text-slate-700 focus:border-criocord-500 focus:ring-3 focus:ring-criocord-100 focus:outline-none">
                     @foreach ($laboratorios as $lab)
                         <option value="{{ $lab->identificacion }}" @selected($lab->identificacion === $laboratorio)>
                             {{ $lab->alias }}
@@ -42,7 +43,7 @@
 
                 <label for="sede" class="sr-only">Sede</label>
                 <select id="sede" name="sede"
-                        class="rounded-lg border border-slate-300 bg-white py-1.5 pr-8 pl-3 text-sm font-medium text-slate-700 focus:border-criocord-500 focus:ring-3 focus:ring-criocord-100 focus:outline-none">
+                    class="rounded-lg border border-slate-300 bg-white py-1.5 pr-8 pl-3 text-sm font-medium text-slate-700 focus:border-criocord-500 focus:ring-3 focus:ring-criocord-100 focus:outline-none">
                     @foreach ($sedes as $s)
                         <option value="{{ $s->codigo_sede }}" @selected($s->codigo_sede === $sede)>
                             {{ $s->descripcion_sede }}
@@ -53,8 +54,7 @@
                 {{-- Sin JavaScript hace falta un botón; con JavaScript el
                      cambio del select ya dispara el envío. --}}
                 <noscript>
-                    <button type="submit"
-                            class="rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-semibold text-white">
+                    <button type="submit" class="rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-semibold text-white">
                         Cambiar
                     </button>
                 </noscript>
@@ -80,10 +80,11 @@
                     {{-- La cámara. El botón solo aparece si el navegador la tiene;
                          laboratorio.js le quita el "hidden". --}}
                     <button type="button" data-abrir-camara hidden
-                            class="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-criocord-600 px-6 py-4 text-base font-semibold text-white shadow-sm transition hover:bg-criocord-700 focus:ring-3 focus:ring-criocord-200 focus:outline-none">
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
+                        class="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-criocord-600 px-6 py-4 text-base font-semibold text-white shadow-sm transition hover:bg-criocord-700 focus:ring-3 focus:ring-criocord-200 focus:outline-none">
+                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path
+                                d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
                             <path d="M7 12h10" />
                         </svg>
                         Escanear QR con la cámara
@@ -96,12 +97,12 @@
                         </div>
 
                         <p data-camara-estado role="status"
-                           class="mt-3 text-center text-sm font-medium text-slate-500">
+                            class="mt-3 text-center text-sm font-medium text-slate-500">
                             Apunta al código QR de la clienta.
                         </p>
 
                         <button type="button" data-cerrar-camara
-                                class="mt-3 w-full rounded-xl border border-slate-300 bg-white px-6 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 focus:ring-3 focus:ring-slate-200 focus:outline-none">
+                            class="mt-3 w-full rounded-xl border border-slate-300 bg-white px-6 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 focus:ring-3 focus:ring-slate-200 focus:outline-none">
                             Cerrar cámara
                         </button>
                     </div>
@@ -120,18 +121,21 @@
                         </label>
 
                         <div class="mt-2 sm:flex sm:gap-3">
-                            <input id="codigo" name="codigo" value="{{ old('codigo') }}"
-                                   autocomplete="off" autocapitalize="characters" spellcheck="false"
-                                   placeholder="PE-CR-2026-000000-0 o DNI"
-                                   class="w-full rounded-xl border border-slate-300 px-4 py-3 font-mono text-base uppercase placeholder:normal-case placeholder:font-sans focus:border-criocord-500 focus:ring-3 focus:ring-criocord-100 focus:outline-none sm:flex-1">
+                            <input id="codigo" name="codigo" value="{{ old('codigo') }}" autocomplete="off"
+                                autocapitalize="characters" spellcheck="false" placeholder="PE-CR-2026-000000-0 o DNI"
+                                class="w-full rounded-xl border border-slate-300 px-4 py-3 font-mono text-base uppercase placeholder:normal-case placeholder:font-sans focus:border-criocord-500 focus:ring-3 focus:ring-criocord-100 focus:outline-none sm:flex-1">
 
                             <button type="submit"
-                                    class="mt-3 w-full rounded-xl border border-slate-300 bg-white px-6 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 focus:ring-3 focus:ring-slate-200 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:mt-0 sm:w-auto sm:shrink-0">
+                                class="mt-3 w-full rounded-xl border border-slate-300 bg-white px-6 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 focus:ring-3 focus:ring-slate-200 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:mt-0 sm:w-auto sm:shrink-0">
                                 Buscar
                             </button>
                         </div>
 
-                        <p data-error-codigo class="mt-3 text-sm font-medium text-red-600 empty:hidden">@error('codigo'){{ $message }}@enderror</p>
+                        <p data-error-codigo class="mt-3 text-sm font-medium text-red-600 empty:hidden">
+                            @error('codigo')
+                                {{ $message }}
+                            @enderror
+                        </p>
                     </form>
 
                     <p class="mt-4 text-xs text-pretty text-slate-400">
