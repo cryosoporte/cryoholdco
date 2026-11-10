@@ -3,16 +3,18 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-
 
 class Contrato extends Model
 {
     protected $table = 'ven_contratos';
+
     protected $primaryKey = 'numero_contrato';
+
     protected $keyType = 'string';
+
     public $incrementing = false;
+
     public $timestamps = false;
 
     protected $casts = [
@@ -23,20 +25,25 @@ class Contrato extends Model
     ];
 
     public const DOC_DNI = 'DI';
+
     /** Los únicos servicios que llevan serología. */
     public const SERVICIOS_SEROLOGIA = ['S', 'T'];
+
     public const DIAS_ANTES = 10;
+
     public const DIAS_DESPUES = 0;
+
     public const LABORATORIO_PRINCIPAL = '20330025213';
 
     /** Memoria de tomaActiva(): la toma y si ya se fue a buscar. */
     protected ?Toma $tomaEnMemoria = null;
+
     protected bool $tomaBuscada = false;
 
     public static function buscarPorDni(string $dni): ?self
     {
         return static::query()
-            ->from('ven_contratos as c')  
+            ->from('ven_contratos as c')
             ->leftJoin('ven_clientes as cl', function ($join) {
                 $join->on('cl.no_cia', '=', 'c.no_cia')
                     ->on('cl.identificacion', '=', 'c.identificacion1');
@@ -49,14 +56,14 @@ class Contrato extends Model
                 'c.numero_base',
                 'c.identificacion1',
                 'c.fecha_contrato',
-                'c.fecha_nacimiento', 
-                'c.contrato_lp as ciudad_laboratorio',  
+                'c.fecha_nacimiento',
+                'c.contrato_lp as ciudad_laboratorio',
                 'cl.nombre as nombre_completo',
-                'cl.nombre_corto as primer_nombre'
+                'cl.nombre_corto as primer_nombre',
             ])
             ->where('c.codigo_documento1', self::DOC_DNI)
             ->where('c.identificacion1', $dni)
-            ->whereIn('c.servicio', ['S','T'])
+            ->whereIn('c.servicio', ['S', 'T'])
             ->orderByDesc('c.fecha_contrato')
             ->first();
     }
@@ -124,12 +131,12 @@ class Contrato extends Model
 
     public function sedes()
     {
-        $query = DB::table('lab_laboratorios_sedes l')
+        $query = DB::table('lab_laboratorios_sedes as l')
             ->join('cxp_proveedores as cp', function ($join) {
                 $join->on('cp.no_cia', '=', 'l.no_cia')
                     ->on('cp.identificacion', '=', 'l.identificacion');
             })
-            ->select('cp.alias','l.codigo_sede', 'l.descripcion_sede', 'l.direccion_sede', 'l.ciudad')
+            ->select('cp.alias', 'l.codigo_sede', 'l.descripcion_sede', 'l.direccion_sede', 'l.ciudad')
             ->where('l.no_cia', $this->no_cia)
             ->where('l.estado', 'A');
 
@@ -149,7 +156,7 @@ class Contrato extends Model
             ->unique('descripcion_sede')
             ->values();
     }
-    
+
     /**
      * El estado sale de OPE_TOMAS_SEROLOGICAS, no de este contrato:
      *

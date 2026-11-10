@@ -9,6 +9,7 @@ import { TablaResultados } from "@/components/serologia/tabla-resultados";
 import { TarjetasEstado } from "@/components/serologia/tarjetas-estado";
 import { FiltrosSerologia } from "@/components/serologia/filtros-serologia";
 import { PaginacionResultados } from "@/components/serologia/paginacion-resultados";
+import { FormError } from "@/components/form-error";
 
 import type {
     Resultado,
@@ -153,14 +154,7 @@ export default function Serologia({
                 onLimpiarEstado={() => setEstadoSeleccionado(null)}
             />
 
-            {errorFiltros && (
-                <p
-                    role="alert"
-                    className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
-                >
-                    {errorFiltros}
-                </p>
-            )}
+            <FormError message={errorFiltros} />
 
             <p role="status" className="min-h-5 text-sm text-muted-foreground">
                 {actualizando ? "Actualizando resultados..." : ""}

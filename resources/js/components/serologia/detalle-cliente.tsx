@@ -1,7 +1,14 @@
-import { Dialog } from "@base-ui/react/dialog";
-import { formatearFecha } from "@/lib/fechas";
-import { EstadoCliente } from "./estado-cliente";
-import { PlazoCliente } from "./plazo-cliente";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { EstadoCliente, obtenerEstadoCliente } from "./estado-cliente";
 import type { Resultado } from "./tipos";
 
 type DetalleClienteProps = {
@@ -9,9 +16,95 @@ type DetalleClienteProps = {
     onCerrar: () => void;
 };
 
+const formatoFecha = new Intl.DateTimeFormat("es-PE", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+});
+
+function formatearFechaCorta(fecha: string): string {
+    const dia = new Date(`${fecha.slice(0, 10)}T00:00:00Z`);
+
+    return Number.isNaN(dia.getTime()) ? "—" : formatoFecha.format(dia);
+}
+
+function DatosCliente({ cliente }: { cliente: Resultado }) {
+    const estado = obtenerEstadoCliente(cliente);
+    const datos = cliente.detalle;
+    const apertura = datos?.plazo.fecha_apertura;
+    const limite = datos?.plazo.fecha_limite;
+    const plazo =
+        apertura && limite
+            ? `${formatearFechaCorta(apertura)} – ${formatearFechaCorta(limite)}`
+            : "—";
+    const toma = cliente.fecha_toma
+        ? [formatearFechaCorta(cliente.fecha_toma), datos?.sede_toma]
+              .filter(Boolean)
+              .join(", ")
+        : estado === "pendiente" ? "Pendiente" : "—";
+    const resultado = estado === "recibido"
+        ? cliente.fecha_resultado
+            ? `Recibido ${formatearFechaCorta(cliente.fecha_resultado)}`
+            : "Recibido · Sin fecha"
+        : "Pendiente";
+
+    const campos = [
+        ["DNI", cliente.identificacion],
+        ["Celular", datos?.celular],
+        ["Asesor", cliente.asesor_nombre ?? cliente.asesor_dni],
+        ["Código de contrato", cliente.numero_base],
+        ["FPP", datos?.fpp ? formatearFechaCorta(datos.fpp) : null],
+        ["Parto real", datos?.parto_real ? formatearFechaCorta(datos.parto_real) : null],
+        ["Plazo", plazo],
+        ["Toma", toma],
+        ["Resultado", resultado],
+    ];
+
+    return (
+        <>
+            <dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3">
+                {campos.map(([etiqueta, valor]) => (
+                    <div key={etiqueta}>
+                        <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            {etiqueta}
+                        </dt>
+                        <dd className="mt-1 break-words font-semibold">
+                            {valor ?? "—"}
+                        </dd>
+                    </div>
+                ))}
+            </dl>
+
+            {estado === "pendiente" && (
+                <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                    <div className="space-y-2">
+                        <Label htmlFor="detalle-fecha-parto">Fecha de parto real</Label>
+                        <Input
+                            id="detalle-fecha-parto"
+                            type="date"
+                            value={datos?.parto_real ?? ""}
+                            readOnly
+                            className="h-11"
+                        />
+                    </div>
+                    <Button variant="outline" type="button" disabled className="h-11">
+                        Guardar y mover plazo
+                    </Button>
+                </div>
+            )}
+
+            {estado === "tomada" && (
+                <Button type="button" disabled className="h-11 justify-self-start">
+                    Resultado recibido
+                </Button>
+            )}
+        </>
+    );
+}
+
 export function DetalleCliente({ cliente, onCerrar }: DetalleClienteProps) {
     return (
-        <Dialog.Root
+        <Dialog
             open={cliente !== null}
             onOpenChange={(abierto) => {
                 if (!abierto) {
@@ -19,81 +112,32 @@ export function DetalleCliente({ cliente, onCerrar }: DetalleClienteProps) {
                 }
             }}
         >
-            <Dialog.Portal>
-                <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40" />
+            <DialogContent className="max-w-3xl gap-6">
+                {cliente && (
+                    <>
+                        <DialogHeader className="border-b pb-4">
+                            <DialogTitle className="text-2xl font-bold">
+                                {cliente.nombre}
+                            </DialogTitle>
+                            <DialogDescription className="sr-only">
+                                Detalle del contrato y seguimiento de la prueba
+                                serológica.
+                            </DialogDescription>
 
-                <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 max-h-[90dvh] w-[calc(100%-2rem)] max-w-3xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-background text-foreground shadow-xl">
-                    {cliente && (
-                        <>
-                            <div className="flex items-start justify-between gap-4 border-b p-6">
-                                <div>
-                                    <Dialog.Title className="text-2xl font-bold">
-                                        {cliente.nombre}
-                                    </Dialog.Title>
+                            <EstadoCliente
+                                fila={cliente}
+                                situacionPlazo={
+                                    obtenerEstadoCliente(cliente) === "pendiente"
+                                        ? cliente.detalle?.plazo.situacion ?? null
+                                        : null
+                                }
+                            />
+                        </DialogHeader>
 
-                                    <div className="mt-3">
-                                        <EstadoCliente fila={cliente} />
-                                    </div>
-                                </div>
-
-                                <Dialog.Close
-                                    aria-label="Cerrar detalle del cliente"
-                                    className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-muted text-xl hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                >
-                                    ×
-                                </Dialog.Close>
-                            </div>
-
-                            <div className="space-y-6 p-6">
-                                <dl className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-                                    {[
-                                        ["DNI", cliente.identificacion],
-                                        ["Número base", cliente.numero_base],
-                                        [
-                                            "Asesor",
-                                            cliente.asesor_nombre ??
-                                                cliente.asesor_dni,
-                                        ],
-                                        [
-                                            "Fecha de nacimiento",
-                                            formatearFecha(
-                                                cliente.fecha_nacimiento,
-                                            ),
-                                        ],
-                                        [
-                                            "Fecha de toma",
-                                            formatearFecha(cliente.fecha_toma),
-                                        ],
-                                        [
-                                            "Fecha de resultado",
-                                            formatearFecha(
-                                                cliente.fecha_resultado,
-                                            ),
-                                        ],
-                                    ].map(([etiqueta, valor]) => (
-                                        <div key={etiqueta}>
-                                            <dt className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                                                {etiqueta}
-                                            </dt>
-                                            <dd className="mt-1 break-words font-semibold">
-                                                {valor ?? "—"}
-                                            </dd>
-                                        </div>
-                                    ))}
-                                </dl>
-
-                                <div>
-                                    <p className="mb-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                                        Plazo
-                                    </p>
-
-                                    <PlazoCliente plazo={cliente.plazo} />
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </Dialog.Popup>
-            </Dialog.Portal>
-        </Dialog.Root>
+                        <DatosCliente cliente={cliente} />
+                    </>
+                )}
+            </DialogContent>
+        </Dialog>
     );
 }

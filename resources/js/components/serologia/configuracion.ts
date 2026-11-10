@@ -17,24 +17,24 @@ export const estados = {
     },
     recibido: {
         texto: "Resultado recibido",
-        clase: "bg-green-50 text-green-700 border-green-700",
+        clase: "bg-emerald-50 text-emerald-700 border-emerald-700",
         descripcion: "Proceso completo",
-        borde: "border-l-green-600",
-        seleccion: "ring-green-600 bg-green-50 dark:bg-green-950/30",
+        borde: "border-l-emerald-600",
+        seleccion: "ring-emerald-600 bg-emerald-50 dark:bg-emerald-950/30",
     },
     tomada: {
         texto: "Tomada",
-        clase: "bg-blue-50 text-blue-700 border-blue-700",
+        clase: "bg-criocord-50 text-criocord-700 border-criocord-700",
         descripcion: "Esperando resultado",
-        borde: "border-l-blue-500",
-        seleccion: "ring-blue-600 bg-blue-50 dark:bg-blue-950/30",
+        borde: "border-l-criocord-500",
+        seleccion: "ring-criocord-600 bg-criocord-50 dark:bg-criocord-900/30",
     },
     pendiente: {
         texto: "Pendiente",
-        clase: "bg-yellow-50 text-yellow-700 border-yellow-700",
+        clase: "bg-amber-50 text-amber-700 border-amber-700",
         descripcion: "Aún sin toma registrada",
-        borde: "border-l-yellow-500",
-        seleccion: "ring-yellow-600 bg-yellow-50 dark:bg-yellow-950/30",
+        borde: "border-l-amber-500",
+        seleccion: "ring-amber-600 bg-amber-50 dark:bg-amber-950/30",
     },
 };
 

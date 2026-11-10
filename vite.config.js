@@ -20,9 +20,7 @@ export default defineConfig({
             input: [
                 "resources/css/app.css",
                 "resources/js/app.jsx",
-                "resources/js/dashboard.tsx",
-                "resources/js/clientes.js",
-                "resources/js/laboratorio.js",
+                "resources/js/inertia.tsx",
             ],
             refresh: true,
             fonts: [
@@ -89,6 +87,7 @@ export default defineConfig({
             "@base-ui/react/drawer",
             "@base-ui/react/input",
             "@base-ui/react/menu",
+            "@base-ui/react/progress",
             "@base-ui/react/merge-props",
             "@base-ui/react/select",
             "@base-ui/react/separator",

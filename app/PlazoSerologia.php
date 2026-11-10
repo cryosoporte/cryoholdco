@@ -46,8 +46,12 @@ class PlazoSerologia
     /**
      * @return array{situacion: string, fecha_apertura: ?string, fecha_limite: ?string, dias_restantes: ?int, porcentaje_transcurrido: ?int, texto: string}
      */
-    public function calcular(?string $fechaNacimiento, CarbonImmutable $hoy): array
-    {
+    public function calcular(
+        ?string $fechaNacimiento,
+        CarbonImmutable $hoy,
+        int $diasAntes = 30,
+        int $diasDespues = 7,
+    ): array {
         if ($fechaNacimiento === null) {
             return [
                 'situacion' => 'sin_fecha',
@@ -61,8 +65,8 @@ class PlazoSerologia
 
         $hoy = $hoy->setTimezone('America/Lima')->startOfDay();
         $nacimiento = CarbonImmutable::createFromFormat('!Y-m-d', $fechaNacimiento, 'America/Lima');
-        $apertura = $nacimiento->subDays(30);
-        $limite = $nacimiento->addDays(7);
+        $apertura = $nacimiento->subDays($diasAntes);
+        $limite = $nacimiento->addDays($diasDespues);
         $diasRestantes = (int) $hoy->diffInDays($limite, false);
         $duracion = (int) $apertura->diffInDays($limite, false);
         $diasTranscurridos = (int) $apertura->diffInDays($hoy, false);

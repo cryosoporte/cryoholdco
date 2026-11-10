@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
@@ -9,8 +9,10 @@
 @source '../../storage/framework/views/*.php';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans:
+        "Instrument Sans", ui-sans-serif, system-ui, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+        "Noto Color Emoji";
 
     /* Paleta Criocord, construida alrededor del azul del logo (--color-criocord-500).
        Al vivir aquí, Tailwind genera solas las utilidades: bg-criocord-600,
@@ -25,8 +27,9 @@
     --color-criocord-700: #3e5897;
     --color-criocord-800: #374b7b;
     --color-criocord-900: #314163;
+    --color-criocord-950: #101b30;
 
-    /* Entrada suave de la ficha cuando llega por fetch: clase animate-aparecer. */
+    /* Entrada suave para las fichas: clase animate-aparecer. */
     --animate-aparecer: aparecer 0.35s ease-out both;
 
     @keyframes aparecer {
@@ -43,7 +46,7 @@
 
 @theme inline {
     --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif;
+    --font-sans: "Geist Variable", sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -153,14 +156,77 @@
     --sidebar-ring: oklch(0.556 0 0);
 }
 
+html[data-theme="criocord"] {
+    --background: var(--color-criocord-50);
+    --foreground: var(--color-criocord-950);
+    --card: #fff;
+    --card-foreground: var(--color-criocord-950);
+    --popover: #fff;
+    --popover-foreground: var(--color-criocord-950);
+    --primary: var(--color-criocord-500);
+    --primary-foreground: var(--color-criocord-950);
+    --primary-hover: var(--color-criocord-600);
+    --primary-hover-foreground: #fff;
+    --secondary: var(--color-criocord-100);
+    --secondary-foreground: var(--color-criocord-800);
+    --muted: var(--color-criocord-50);
+    --muted-foreground: var(--color-criocord-700);
+    --accent: var(--color-criocord-100);
+    --accent-foreground: var(--color-criocord-900);
+    --border: var(--color-criocord-200);
+    --input: var(--color-criocord-300);
+    --ring: var(--color-criocord-500);
+    --sidebar: var(--color-criocord-50);
+    --sidebar-foreground: var(--color-criocord-900);
+    --sidebar-primary: #000;
+    --sidebar-primary-foreground: #fff;
+    --sidebar-accent: var(--color-criocord-100);
+    --sidebar-accent-foreground: var(--color-criocord-800);
+    --sidebar-border: var(--color-criocord-200);
+    --sidebar-ring: var(--ring);
+    --chart-1: var(--color-criocord-500);
+    --chart-2: #0d9488;
+    --chart-3: #6366f1;
+    --chart-4: #d97706;
+    --chart-5: var(--color-criocord-800);
+}
+
+html[data-theme="criocord"].dark {
+    --background: var(--color-criocord-950);
+    --foreground: var(--color-criocord-50);
+    --card: color-mix(
+        in srgb,
+        var(--color-criocord-900) 30%,
+        var(--color-criocord-950)
+    );
+    --card-foreground: var(--color-criocord-50);
+    --popover: var(--card);
+    --popover-foreground: var(--foreground);
+    --primary-hover: var(--color-criocord-400);
+    --primary-hover-foreground: var(--color-criocord-950);
+    --secondary: var(--color-criocord-900);
+    --secondary-foreground: var(--color-criocord-100);
+    --muted: var(--card);
+    --muted-foreground: var(--color-criocord-300);
+    --accent: var(--color-criocord-900);
+    --accent-foreground: var(--color-criocord-100);
+    --border: var(--color-criocord-800);
+    --input: var(--color-criocord-700);
+    --sidebar: var(--color-criocord-950);
+    --sidebar-foreground: var(--color-criocord-100);
+    --sidebar-accent: var(--color-criocord-900);
+    --sidebar-accent-foreground: var(--color-criocord-100);
+    --sidebar-border: var(--border);
+}
+
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+    * {
+        @apply border-border outline-ring/50;
     }
-  body {
-    @apply bg-background text-foreground;
+    body {
+        @apply bg-background text-foreground;
     }
-  html {
-    @apply font-sans;
+    html {
+        @apply font-sans;
     }
 }

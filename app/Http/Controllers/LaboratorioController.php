@@ -5,132 +5,164 @@ namespace App\Http\Controllers;
 use App\Models\Contrato;
 use App\Models\Sede;
 use App\Models\Toma;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-
+use Inertia\Inertia;
+use Inertia\Response;
 
 class LaboratorioController extends Controller
 {
-    /** Por defecto abre en Suiza Lab, que es quien más toma. */
     public const LABORATORIO_POR_DEFECTO = '20330025213';
 
-    public function index()
+    public function index(Request $request): Response
     {
-        return view('serologia.laboratorio.index', $this->contexto());
+        [$laboratorio, $sede] = $this->laboratorioYSede();
+
+        return Inertia::render('laboratorio', [
+            'laboratorios' => Sede::laboratorios()->map(fn (object $fila): array => [
+                'codigo' => $fila->identificacion,
+                'nombre' => $fila->alias,
+            ])->all(),
+            'sedes' => $laboratorio === null ? [] : Sede::deLaboratorio($laboratorio)
+                ->map(fn (Sede $fila): array => [
+                    'codigo' => $fila->codigo_sede,
+                    'nombre' => $fila->descripcion_sede,
+                ])->all(),
+            'laboratorio' => $laboratorio,
+            'sede' => $sede,
+            'nombre_sede' => $laboratorio !== null && $sede !== null
+                ? Sede::nombre($laboratorio, $sede) : null,
+            'hoy' => $laboratorio !== null && $sede !== null
+                ? Toma::tomadasHoy($laboratorio, $sede)->map(fn (Toma $fila): array => [
+                    'numero_contrato' => $fila->numero_contrato_base,
+                    'numero_toma' => (int) $fila->numero_toma,
+                    'nombre' => $fila->nombre_completo,
+                    'hora' => $fila->fecha_toma->format('H:i'),
+                ])->all() : [],
+            'resultado' => $request->session()->get('consulta_laboratorio'),
+        ]);
     }
 
-    public function consultar(Request $request)
+    public function consultar(Request $request): RedirectResponse
     {
         $datos = $request->validate(
             ['codigo' => ['required', 'string', 'max:40']],
             ['codigo.required' => 'Escanea el QR o escribe el código o el DNI.']
         );
-
         $contrato = Contrato::buscarPorContratoDNI($datos['codigo']);
 
-        $resultado = match (true) {
-            ! $contrato => ['error' => 'No es clienta de Criocord, o el código está mal escrito. Prueba con el DNI.'],
-            ! $contrato->tomaActiva() => ['error' => 'Este contrato todavía no está cargado en el sistema de tomas. No tomes la muestra: avisa a Criocord.'],
-            default => ['contrato' => $contrato, 'toma' => $contrato->tomaActiva()],
-        };
-
-        return $this->responder($request, $resultado);
-    }
-
-    public function marcar(Request $request)
-    {
-        $datos = $request->validate(
-            ['codigo' => ['required', 'string', 'max:40']],
-            ['codigo.required' => 'Falta el código del contrato.']
-        );
-
-        [$laboratorio, $sede] = $this->laboratorioYSede();
-
-        $contrato = Contrato::buscarPorContratoDNI($datos['codigo']);
-        $toma = $contrato?->tomaActiva();
-
-        if (! $toma) {
-            return $this->responder($request, [
-                'error' => 'No encontramos esa toma. Vuelve a escanear.',
+        if (! $contrato) {
+            return to_route('laboratorio.index')->withErrors([
+                'codigo' => 'No es clienta de Criocord, o el código está mal escrito. Prueba con el DNI.',
             ]);
         }
 
-        // marcarTomada() devuelve false si otra persona se adelantó; en ese
-        // caso no es un error, solo hay que mostrar el estado de verdad.
-        $recienMarcada = $toma->marcarTomada($laboratorio, $sede);
+        $toma = $contrato->tomaActiva();
 
-        return $this->responder($request, [
-            'contrato' => $contrato,
-            'toma' => $toma,
-            'recienMarcada' => $recienMarcada,
-        ]);
+        if (! $toma) {
+            return to_route('laboratorio.index')->withErrors([
+                'codigo' => 'Este contrato todavía no está cargado en el sistema de tomas. No tomes la muestra: avisa a Criocord.',
+            ]);
+        }
+
+        return to_route('laboratorio.index')->with(
+            'consulta_laboratorio', $this->resultado($contrato, $toma)
+        );
     }
 
-    public function sede(Request $request)
+    public function marcar(Request $request): RedirectResponse
+    {
+        $datos = $request->validate(
+            [
+                'codigo' => ['required', 'string', 'max:40'],
+                'numero_toma' => ['required', 'integer', 'min:1'],
+            ],
+            [
+                'codigo.required' => 'Falta el código del contrato.',
+                'numero_toma.required' => 'Vuelve a buscar el contrato antes de registrar la muestra.',
+            ]
+        );
+        [$laboratorio, $sede] = $this->laboratorioYSede();
+
+        if ($laboratorio === null || $sede === null) {
+            return to_route('laboratorio.index')->withErrors([
+                'sede' => 'Selecciona un laboratorio y una sede activa antes de registrar la muestra.',
+            ]);
+        }
+
+        $contrato = Contrato::buscarPorContratoDNI($datos['codigo']);
+        $toma = $contrato === null ? null : Toma::query()
+            ->where('no_cia', $contrato->no_cia)
+            ->where('numero_contrato_base', $contrato->numero_base)
+            ->where('numero_toma', $datos['numero_toma'])
+            ->first();
+
+        if (! $toma) {
+            return to_route('laboratorio.index')->withErrors([
+                'codigo' => 'No encontramos esa toma. Vuelve a escanear.',
+            ]);
+        }
+
+        $recienMarcada = $toma->puedeTomarse() && $toma->marcarTomada($laboratorio, $sede);
+
+        if (! $recienMarcada) {
+            $toma = Toma::query()
+                ->where('no_cia', $toma->no_cia)
+                ->where('numero_contrato_base', $toma->numero_contrato_base)
+                ->where('numero_toma', $toma->numero_toma)
+                ->firstOrFail();
+        }
+
+        return to_route('laboratorio.index')->with(
+            'consulta_laboratorio', $this->resultado($contrato, $toma, $recienMarcada)
+        );
+    }
+
+    public function sede(Request $request): RedirectResponse
     {
         $datos = $request->validate([
             'laboratorio' => ['required', 'string', 'max:15'],
             'sede' => ['nullable', 'string', 'max:2'],
         ]);
-
         $sedes = Sede::deLaboratorio($datos['laboratorio']);
 
         if ($sedes->isEmpty()) {
-            return back()->withErrors(['laboratorio' => 'Ese laboratorio no tiene sedes activas.']);
+            return to_route('laboratorio.index')->withErrors([
+                'laboratorio' => 'Ese laboratorio no tiene sedes activas.',
+            ]);
         }
 
-        // Al cambiar de laboratorio la sede anterior ya no vale: se toma la
-        // primera de la lista nueva.
-        $sede = $sedes->firstWhere('codigo_sede', $datos['sede'])
-            ? $datos['sede']
-            : $sedes->first()->codigo_sede;
+        $sede = $sedes->firstWhere('codigo_sede', $datos['sede'] ?? null)
+            ? $datos['sede'] : $sedes->first()->codigo_sede;
 
-        session(['laboratorio.ruc' => $datos['laboratorio'], 'laboratorio.sede' => $sede]);
+        $request->session()->put([
+            'laboratorio.ruc' => $datos['laboratorio'],
+            'laboratorio.sede' => $sede,
+        ]);
+        $request->session()->forget('consulta_laboratorio');
 
-        return $request->expectsJson()
-            ? response()->json($this->fragmentos([]))
-            : redirect()->route('laboratorio.index');
-    }
- 
-    private function responder(Request $request, array $resultado)
-    {
-        if ($request->expectsJson()) {
-            return response()->json($this->fragmentos($resultado));
-        }
-
-        return view('serologia.laboratorio.index', $this->contexto($resultado));
+        return to_route('laboratorio.index');
     }
 
-    private function fragmentos(array $resultado): array
+    /**
+     * @return array{nombre: ?string, primer_nombre: ?string, numero_contrato: string, numero_toma: int, estado: string, fecha_toma: ?string, hora_toma: ?string, sede_toma: ?string, recien_marcada: bool}
+     */
+    private function resultado(Contrato $contrato, Toma $toma, bool $recienMarcada = false): array
     {
-        $contexto = $this->contexto($resultado);
-
         return [
-            'semaforo' => view('serologia.laboratorio.partials.semaforo', $contexto)->render(),
-            'hoy' => view('serologia.laboratorio.partials.hoy', $contexto)->render(),
-            'opciones' => view('serologia.laboratorio.partials.opciones-sede', $contexto)->render(),
+            'nombre' => $contrato->nombre_completo,
+            'primer_nombre' => $contrato->primer_nombre,
+            'numero_contrato' => $toma->numero_contrato_base,
+            'numero_toma' => (int) $toma->numero_toma,
+            'estado' => $toma->estado(),
+            'fecha_toma' => $toma->fecha_toma?->toDateString(),
+            'hora_toma' => $toma->fecha_toma?->format('H:i'),
+            'sede_toma' => $toma->dondeSeTomo(),
+            'recien_marcada' => $recienMarcada,
         ];
     }
 
-    /** Todo lo que la vista necesita saber, en un solo sitio. */
-    private function contexto(array $resultado = []): array
-    {
-        [$laboratorio, $sede] = $this->laboratorioYSede();
-
-        return array_merge([
-            'laboratorios' => Sede::laboratorios(),
-            'sedes' => Sede::deLaboratorio($laboratorio),
-            'laboratorio' => $laboratorio,
-            'sede' => $sede,
-            'nombreSede' => Sede::nombre($laboratorio, $sede),
-            'hoy' => Toma::tomadasHoy($laboratorio, $sede),
-            'contrato' => null,
-            'toma' => null,
-            'error' => null,
-            'recienMarcada' => false,
-        ], $resultado);
-    }
-
-    /** Laboratorio y sede de la sesión, con el primero disponible por defecto. */
+    /** @return array{0: ?string, 1: ?string} */
     private function laboratorioYSede(): array
     {
         $laboratorio = session('laboratorio.ruc', self::LABORATORIO_POR_DEFECTO);

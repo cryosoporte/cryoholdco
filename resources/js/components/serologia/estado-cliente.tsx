@@ -1,22 +1,28 @@
 import { Badge } from "@/components/ui/badge";
-import type { Resultado } from "./tipos";
-import { estados, avisosPlazo } from "./configuracion";
+import type { Plazo, Resultado } from "./tipos";
+import { avisosPlazo } from "./configuracion";
+import { EstadoPruebaBadge, type EstadoPrueba } from "./estado-prueba";
 
-export function EstadoCliente({ fila }: { fila: Resultado }) {
-    const estado =
-        fila.serologia === "S"
-            ? estados.recibido
-            : fila.fecha_toma !== null
-              ? estados.tomada
-              : estados.pendiente;
+export function obtenerEstadoCliente(fila: Resultado): EstadoPrueba {
+    if (fila.serologia === "S") {
+        return "recibido";
+    }
 
-    const avisoPlazo = fila.plazo ? avisosPlazo[fila.plazo.situacion] : null;
+    return fila.fecha_toma === null ? "pendiente" : "tomada";
+}
+
+export function EstadoCliente({
+    fila,
+    situacionPlazo = fila.plazo?.situacion,
+}: {
+    fila: Resultado;
+    situacionPlazo?: Plazo["situacion"] | null;
+}) {
+    const avisoPlazo = situacionPlazo ? avisosPlazo[situacionPlazo] : null;
 
     return (
         <div className="flex flex-wrap items-center gap-2">
-            <Badge className={`${estado.clase} py-3 px-3`}>
-                {estado.texto}
-            </Badge>
+            <EstadoPruebaBadge estado={obtenerEstadoCliente(fila)} />
 
             {avisoPlazo && (
                 <Badge
