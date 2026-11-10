@@ -11,6 +11,34 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Paleta Criocord, construida alrededor del azul del logo (--color-criocord-500).
+       Al vivir aquí, Tailwind genera solas las utilidades: bg-criocord-600,
+       text-criocord-700, ring-criocord-200, border-criocord-100, etc. */
+    --color-criocord-50: #f2f6fd;
+    --color-criocord-100: #e3ecfa;
+    --color-criocord-200: #cbdbf4;
+    --color-criocord-300: #a7c1ea;
+    --color-criocord-400: #80a3dd;
+    --color-criocord-500: #6287d0;
+    --color-criocord-600: #4b6cba;
+    --color-criocord-700: #3e5897;
+    --color-criocord-800: #374b7b;
+    --color-criocord-900: #314163;
+
+    /* Entrada suave de la ficha cuando llega por fetch: clase animate-aparecer. */
+    --animate-aparecer: aparecer 0.35s ease-out both;
+
+    @keyframes aparecer {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
 }
 
 @theme inline {
