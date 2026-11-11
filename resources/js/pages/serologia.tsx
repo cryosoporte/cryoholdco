@@ -1,14 +1,13 @@
 import AppLayout from "@/layouts/app-layout";
 
-import { useEffect, useState } from "react";
-import { router } from "@inertiajs/react";
-import { route } from "ziggy-js";
+import { useState } from "react";
 
 import { DetalleCliente } from "@/components/serologia/detalle-cliente";
 import { TablaResultados } from "@/components/serologia/tabla-resultados";
 import { TarjetasEstado } from "@/components/serologia/tarjetas-estado";
 import { FiltrosSerologia } from "@/components/serologia/filtros-serologia";
 import { PaginacionResultados } from "@/components/serologia/paginacion-resultados";
+import { useFiltrosSerologia } from "@/components/serologia/use-filtros-serologia";
 import { FormError } from "@/components/form-error";
 
 import type {
@@ -33,102 +32,9 @@ export default function Serologia({
     asesor: string | null;
     asesores: Asesor[];
 }) {
-    const [texto, setTexto] = useState(buscar);
-    const [estadoSeleccionado, setEstadoSeleccionado] = useState(estado);
-    const [asesorSeleccionado, setAsesorSeleccionado] = useState(asesor);
-    const [cargando, setCargando] = useState(false);
+    const filtros = useFiltrosSerologia({ buscar, estado, asesor });
     const [clienteSeleccionado, setClienteSeleccionado] =
         useState<Resultado | null>(null);
-    const [errorFiltros, setErrorFiltros] = useState<string | null>(null);
-
-    const filtrosPendientes =
-        texto.trim() !== buscar ||
-        estadoSeleccionado !== estado ||
-        asesorSeleccionado !== asesor;
-    const actualizando = filtrosPendientes || cargando;
-
-    useEffect(() => {
-        if (
-            texto.trim() === buscar &&
-            estadoSeleccionado === estado &&
-            asesorSeleccionado === asesor
-        )
-            return;
-
-        function recuperarFiltros(mensaje: string): void {
-            setTexto(buscar);
-            setEstadoSeleccionado(estado);
-            setAsesorSeleccionado(asesor);
-            setErrorFiltros(mensaje);
-        }
-
-        let cancelarPeticion: (() => void) | undefined;
-
-        const temporizador = setTimeout(
-            () => {
-                router.get(
-                    route("serologia"),
-                    {
-                        buscar: texto.trim(),
-                        ...(estadoSeleccionado
-                            ? { estado: estadoSeleccionado }
-                            : {}),
-                        ...(asesorSeleccionado
-                            ? { asesor: asesorSeleccionado }
-                            : {}),
-                    },
-                    {
-                        preserveState: true,
-                        preserveScroll: true,
-                        replace: true,
-
-                        onStart: () => {
-                            setErrorFiltros(null);
-                            setCargando(true);
-                        },
-
-                        onError: () => {
-                            recuperarFiltros(
-                                "No se pudieron aplicar los filtros. Se restauraron los anteriores.",
-                            );
-                        },
-
-                        onNetworkError: () => {
-                            recuperarFiltros(
-                                "No se pudo conectar con el servidor. Se restauraron los filtros anteriores.",
-                            );
-
-                            return false;
-                        },
-
-                        onHttpException: () => {
-                            recuperarFiltros(
-                                "El servidor no pudo completar la consulta. Se restauraron los filtros anteriores.",
-                            );
-
-                            return false;
-                        },
-
-                        onFinish: () => {
-                            setCargando(false);
-                        },
-
-                        onCancelToken: (token) => {
-                            cancelarPeticion = () => token.cancel();
-                        },
-                    },
-                );
-            },
-            estadoSeleccionado !== estado || asesorSeleccionado !== asesor
-                ? 0
-                : 350,
-        );
-
-        return () => {
-            clearTimeout(temporizador);
-            cancelarPeticion?.();
-        };
-    }, [texto, buscar, estadoSeleccionado, estado, asesorSeleccionado, asesor]);
 
     return (
         <AppLayout title="Operaciones - Serología">
@@ -136,51 +42,36 @@ export default function Serologia({
 
             <TarjetasEstado
                 conteos={conteos}
-                estadoSeleccionado={estadoSeleccionado}
-                onSeleccionarEstado={(opcion) =>
-                    setEstadoSeleccionado((actual) =>
-                        actual === opcion ? null : opcion,
-                    )
-                }
+                estadoSeleccionado={filtros.estadoSeleccionado}
+                onSeleccionarEstado={filtros.alternarEstado}
             />
 
             <FiltrosSerologia
-                texto={texto}
-                asesorSeleccionado={asesorSeleccionado}
-                estadoSeleccionado={estadoSeleccionado}
+                texto={filtros.texto}
+                asesorSeleccionado={filtros.asesorSeleccionado}
+                estadoSeleccionado={filtros.estadoSeleccionado}
                 asesores={asesores}
-                onCambiarTexto={setTexto}
-                onCambiarAsesor={setAsesorSeleccionado}
-                onLimpiarEstado={() => setEstadoSeleccionado(null)}
+                onCambiarTexto={filtros.setTexto}
+                onCambiarAsesor={filtros.setAsesorSeleccionado}
+                onLimpiarEstado={filtros.limpiarEstado}
             />
 
-            <FormError message={errorFiltros} />
+            <FormError message={filtros.errorFiltros} />
 
             <p role="status" className="min-h-5 text-sm text-muted-foreground">
-                {actualizando ? "Actualizando resultados..." : ""}
+                {filtros.actualizando ? "Actualizando resultados..." : ""}
             </p>
 
             <TablaResultados
                 resultados={resultados.data}
-                actualizando={actualizando}
+                actualizando={filtros.actualizando}
                 onSeleccionarCliente={setClienteSeleccionado}
             />
 
             <PaginacionResultados
                 paginacion={resultados}
-                actualizando={actualizando}
-                onCambiarPagina={(url) => {
-                    router.get(
-                        url,
-                        {},
-                        {
-                            preserveState: true,
-                            preserveScroll: true,
-                            onStart: () => setCargando(true),
-                            onFinish: () => setCargando(false),
-                        },
-                    );
-                }}
+                actualizando={filtros.actualizando}
+                onCambiarPagina={filtros.cambiarPagina}
             />
 
             <DetalleCliente

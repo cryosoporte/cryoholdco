@@ -1,11 +1,5 @@
 import { Link } from "@inertiajs/react";
-import {
-    ClipboardListIcon,
-    FlaskConicalIcon,
-    UsersIcon,
-    ArrowRightIcon,
-    ExternalLinkIcon,
-} from "lucide-react";
+import { ArrowRightIcon, ExternalLinkIcon } from "lucide-react";
 import { route } from "ziggy-js";
 import {
     Card,
@@ -15,37 +9,12 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-
-const modulos = [
-    {
-        titulo: "Serología",
-        descripcion: "Consulta estados, plazos y resultados de los clientes.",
-        ruta: "serologia",
-        icono: ClipboardListIcon,
-        nuevaPestana: false,
-    },
-    {
-        titulo: "Clientes",
-        descripcion:
-            "Consulta una prueba por DNI y muestra el código QR del contrato.",
-        ruta: "clientes.index",
-        icono: UsersIcon,
-        nuevaPestana: true,
-    },
-    {
-        titulo: "Laboratorio",
-        descripcion:
-            "Busca contratos, registra muestras y revisa las tomas del día.",
-        ruta: "laboratorio.index",
-        icono: FlaskConicalIcon,
-        nuevaPestana: true,
-    },
-];
+import { modulosOperaciones } from "@/components/operaciones/modulos";
 
 export function AccesosModulos() {
     return (
         <div className="grid gap-4 md:grid-cols-3">
-            {modulos.map(
+            {modulosOperaciones.map(
                 ({ titulo, descripcion, ruta, icono: Icono, nuevaPestana }) => (
                     <Card
                         key={ruta}

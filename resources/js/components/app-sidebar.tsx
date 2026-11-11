@@ -4,6 +4,7 @@ import { route } from "ziggy-js";
 import { LayoutDashboardIcon, SettingsIcon } from "lucide-react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
+import { modulosOperaciones } from "@/components/operaciones/modulos";
 import {
     Sidebar,
     SidebarContent,
@@ -15,17 +16,19 @@ import {
 } from "@/components/ui/sidebar";
 
 export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
-    const { empresa, user } = usePage<{
-        empresa: string | null;
-        user: { name: string; email: string } | null;
-    }>().props;
+    const { empresa, user } = usePage().props;
     const enlaces = [
         { title: "Inicio", url: route("home"), icon: <LayoutDashboardIcon /> },
         {
             title: "Operaciones",
             url: route("operaciones"),
             icon: <SettingsIcon />,
-            items: [{ title: "Serología", url: route("serologia") }],
+            items: modulosOperaciones
+                .filter((modulo) => modulo.enMenuLateral)
+                .map((modulo) => ({
+                    title: modulo.titulo,
+                    url: route(modulo.ruta),
+                })),
         },
     ];
 

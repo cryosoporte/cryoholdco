@@ -1,7 +1,7 @@
 import { ScanLineIcon, XIcon } from "lucide-react";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { useLectorQr } from "@/hooks/use-lector-qr";
+import { useLectorQr } from "@/components/laboratorio/use-lector-qr";
 
 export function LectorQr({
     disabled,
