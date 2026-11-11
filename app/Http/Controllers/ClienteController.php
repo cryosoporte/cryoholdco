@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ConsultarClienteRequest;
 use App\Models\Contrato;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,12 +18,9 @@ class ClienteController extends Controller
         ]);
     }
 
-    public function consultar(Request $request): RedirectResponse
+    public function consultar(ConsultarClienteRequest $request): RedirectResponse
     {
-        $datos = $request->validate(
-            ['dni' => ['required', 'digits:8']],
-            ['dni.required' => 'Escribe tu DNI.', 'dni.digits' => 'El DNI debe tener 8 dígitos.']
-        );
+        $datos = $request->validated();
 
         $contrato = Contrato::buscarPorDni($datos['dni']);
 
