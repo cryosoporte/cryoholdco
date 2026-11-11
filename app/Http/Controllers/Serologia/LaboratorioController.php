@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Serologia;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Serologia\CambiarSedeRequest;
+use App\Http\Requests\Serologia\ConsultarContratoRequest;
+use App\Http\Requests\Serologia\MarcarTomaRequest;
 use App\Models\Contrato;
 use App\Models\Sede;
 use App\Models\Toma;
@@ -44,12 +47,9 @@ class LaboratorioController extends Controller
         ]);
     }
 
-    public function consultar(Request $request): RedirectResponse
+    public function consultar(ConsultarContratoRequest $request): RedirectResponse
     {
-        $datos = $request->validate(
-            ['codigo' => ['required', 'string', 'max:40']],
-            ['codigo.required' => 'Escanea el QR o escribe el código o el DNI.']
-        );
+        $datos = $request->validated();
         $contrato = Contrato::buscarPorContratoDNI($datos['codigo']);
 
         if (! $contrato) {
@@ -71,18 +71,9 @@ class LaboratorioController extends Controller
         );
     }
 
-    public function marcar(Request $request): RedirectResponse
+    public function marcar(MarcarTomaRequest $request): RedirectResponse
     {
-        $datos = $request->validate(
-            [
-                'codigo' => ['required', 'string', 'max:40'],
-                'numero_toma' => ['required', 'integer', 'min:1'],
-            ],
-            [
-                'codigo.required' => 'Falta el código del contrato.',
-                'numero_toma.required' => 'Vuelve a buscar el contrato antes de registrar la muestra.',
-            ]
-        );
+        $datos = $request->validated();
         [$laboratorio, $sede] = $this->laboratorioYSede();
 
         if ($laboratorio === null || $sede === null) {
@@ -119,12 +110,9 @@ class LaboratorioController extends Controller
         );
     }
 
-    public function sede(Request $request): RedirectResponse
+    public function sede(CambiarSedeRequest $request): RedirectResponse
     {
-        $datos = $request->validate([
-            'laboratorio' => ['required', 'string', 'max:15'],
-            'sede' => ['nullable', 'string', 'max:2'],
-        ]);
+        $datos = $request->validated();
         $sedes = Sede::deLaboratorio($datos['laboratorio']);
 
         if ($sedes->isEmpty()) {

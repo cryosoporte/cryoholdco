@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Serologia;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Serologia\EnviarRecordatorioRequest;
+use App\Http\Requests\Serologia\FiltrarSerologiaRequest;
 use App\Mail\RecordatorioSerologia;
 use App\Serologia\PlazoSerologia;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -23,13 +24,9 @@ class SerologiaController extends Controller
 {
     public function __construct(private readonly PlazoSerologia $plazoSerologia) {}
 
-    public function index(Request $request): Response
+    public function index(FiltrarSerologiaRequest $request): Response
     {
-        $datos = $request->validate([
-            'buscar' => ['nullable', 'string', 'max:100'],
-            'estado' => ['nullable', 'in:pendiente,tomada,recibido,por_vencer'],
-            'asesor' => ['nullable', 'string', 'max:100'],
-        ]);
+        $datos = $request->validated();
 
         $buscar = trim($datos['buscar'] ?? '');
         $estado = $datos['estado'] ?? null;
@@ -263,15 +260,9 @@ class SerologiaController extends Controller
         ];
     }
 
-    public function enviarRecordatorio(Request $request): JsonResponse
+    public function enviarRecordatorio(EnviarRecordatorioRequest $request): JsonResponse
     {
-        $datos = $request->validate([
-            'numero_base' => ['required', 'string', 'max:100'],
-            'identificacion' => ['required', 'string', 'max:100'],
-        ], [
-            'numero_base.required' => 'El cliente no tiene un número de contrato base.',
-            'identificacion.required' => 'Falta la identificación del cliente.',
-        ]);
+        $datos = $request->validated();
 
         abort_if(blank($request->user()->empresa), 403);
 

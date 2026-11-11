@@ -5,15 +5,18 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
+use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 class LoginController extends Controller
 {
-    public function index()
+    public function index(): View
     {
         $empresas = DB::table('cor_companias')
             ->orderBy('codigo_compania')
@@ -22,7 +25,7 @@ class LoginController extends Controller
         return view('auth.login', compact('empresas'));
     }
 
-    public function store(LoginRequest $request)
+    public function store(LoginRequest $request): RedirectResponse
     {
         $user = User::whereRaw('lower(email) = ?', [strtolower($request->email)])
             ->where('empresa', $request->empresa)
@@ -45,7 +48,7 @@ class LoginController extends Controller
         return redirect()->route('home');
     }
 
-    public function destroy(Request $request)
+    public function destroy(Request $request): Response
     {
         Auth::logout();
         $request->session()->invalidate();

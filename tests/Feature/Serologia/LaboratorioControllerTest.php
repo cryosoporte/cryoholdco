@@ -126,6 +126,29 @@ class LaboratorioControllerTest extends TestCase
             ->assertSessionHasErrors(['numero_toma' => 'Vuelve a buscar el contrato antes de registrar la muestra.']);
     }
 
+    public function test_rechaza_el_registro_sin_codigo_de_contrato(): void
+    {
+        $this->from(route('laboratorio.index'))->post(route('laboratorio.marcar'), ['numero_toma' => 1])
+            ->assertRedirectToRoute('laboratorio.index')
+            ->assertSessionHasErrors(['codigo' => 'Falta el código del contrato.']);
+    }
+
+    public function test_rechaza_un_codigo_de_mas_de_40_caracteres(): void
+    {
+        $this->from(route('laboratorio.index'))->post(route('laboratorio.consultar'), ['codigo' => str_repeat('A', 41)])
+            ->assertRedirectToRoute('laboratorio.index')
+            ->assertSessionHasErrors('codigo');
+    }
+
+    public function test_no_cambia_la_sede_sin_indicar_el_laboratorio(): void
+    {
+        $this->withSession(['laboratorio.ruc' => '20330025213', 'laboratorio.sede' => '01'])
+            ->from(route('laboratorio.index'))->post(route('laboratorio.sede'), ['sede' => '01'])
+            ->assertRedirectToRoute('laboratorio.index')
+            ->assertSessionHasErrors('laboratorio')
+            ->assertSessionHas('laboratorio.ruc', '20330025213');
+    }
+
     public function test_no_registra_una_toma_que_no_pertenece_al_contrato(): void
     {
         $this->crearContratoPrueba();

@@ -5,7 +5,6 @@ use App\Http\Controllers\Serologia\ClienteController;
 use App\Http\Controllers\Serologia\LaboratorioController;
 use App\Http\Controllers\Serologia\SerologiaController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::prefix('serologia')->group(function () {
     Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
@@ -25,13 +24,8 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 
-    Route::get('/', function () {
-        return Inertia::render('dashboard');
-    })->name('home');
-
-    Route::get('/operaciones', function () {
-        return Inertia::render('operaciones');
-    })->name('operaciones');
+    Route::inertia('/', 'dashboard')->name('home');
+    Route::inertia('/operaciones', 'operaciones')->name('operaciones');
 
     // serología
     Route::get('/serologia', [SerologiaController::class, 'index'])->name('serologia');
