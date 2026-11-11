@@ -19,7 +19,6 @@ export default defineConfig({
         laravel({
             input: [
                 "resources/css/app.css",
-                "resources/js/app.jsx",
                 "resources/js/inertia.tsx",
             ],
             refresh: true,
@@ -98,14 +97,8 @@ export default defineConfig({
             "@base-ui/react/use-render",
             "class-variance-authority",
             "cn",
-            "@dnd-kit/core",
-            "@dnd-kit/modifiers",
-            "@dnd-kit/sortable",
-            "@dnd-kit/utilities",
-            "@tanstack/react-table",
             "recharts",
             "sonner",
-            "zod",
             "lucide-react",
             "next-themes",
         ],

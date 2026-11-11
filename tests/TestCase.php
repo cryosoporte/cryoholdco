@@ -2,10 +2,15 @@
 
 namespace Tests;
 
+use App\Http\Middleware\HandleInertiaRequests;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Testing\TestResponse;
+use PDO;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -53,6 +58,58 @@ abstract class TestCase extends BaseTestCase
             $table->string('identificacion');
             $table->string('alias');
         });
+    }
+
+    /**
+     * Prepara las tablas y funciones de Oracle que usa el listado de Serología.
+     */
+    protected function prepararListadoSerologia(): void
+    {
+        $this->prepararSerologia();
+
+        $pdo = DB::connection()->getPdo();
+        $pdo->setAttribute(PDO::ATTR_CASE, PDO::CASE_LOWER);
+        $pdo->sqliteCreateFunction('TO_DATE', fn (string $fecha): string => CarbonImmutable::createFromFormat('!d/m/Y', $fecha)->toDateString(), 2);
+        $pdo->sqliteCreateFunction('TO_CHAR', fn (?string $fecha): ?string => $fecha === null ? null : substr($fecha, 0, 10), 2);
+
+        Schema::table('ven_clientes', function (Blueprint $table): void {
+            $table->string('celular_contacto')->nullable();
+        });
+        Schema::table('ven_contratos', function (Blueprint $table): void {
+            $table->string('numero_prospecto')->nullable();
+            $table->integer('confirm_nac')->nullable();
+            $table->string('vendedor')->nullable();
+        });
+        Schema::create('ven_prospectos', function (Blueprint $table): void {
+            $table->string('no_cia');
+            $table->string('numero_prospecto');
+            $table->date('fecha_parto')->nullable();
+        });
+        Schema::create('lab_colectas', function (Blueprint $table): void {
+            $table->string('no_cia');
+            $table->string('numero_contrato');
+            $table->date('fecha_nacimiento')->nullable();
+            $table->string('serologia')->nullable();
+        });
+        Schema::create('users', function (Blueprint $table): void {
+            $table->string('empresa');
+            $table->string('identificacion');
+            $table->string('nombres');
+        });
+    }
+
+    /**
+     * @param  array<string, string|int>  $parametros
+     */
+    protected function consultarListado(array $parametros = []): TestResponse
+    {
+        $url = route('serologia', $parametros);
+        $version = app(HandleInertiaRequests::class)->version(Request::create($url));
+
+        return $this->get($url, [
+            'X-Inertia' => 'true',
+            'X-Inertia-Version' => $version ?? '',
+        ]);
     }
 
     protected function crearContratoPrueba(bool $conToma = true): void

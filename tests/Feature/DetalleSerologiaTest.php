@@ -2,15 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Http\Middleware\HandleInertiaRequests;
 use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Testing\TestResponse;
-use PDO;
 use Tests\TestCase;
 
 class DetalleSerologiaTest extends TestCase
@@ -18,37 +12,7 @@ class DetalleSerologiaTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->prepararSerologia();
-
-        $pdo = DB::connection()->getPdo();
-        $pdo->setAttribute(PDO::ATTR_CASE, PDO::CASE_LOWER);
-        $pdo->sqliteCreateFunction('TO_DATE', fn (string $fecha): string => CarbonImmutable::createFromFormat('!d/m/Y', $fecha)->toDateString(), 2);
-        $pdo->sqliteCreateFunction('TO_CHAR', fn (?string $fecha): ?string => $fecha === null ? null : substr($fecha, 0, 10), 2);
-
-        Schema::table('ven_clientes', function (Blueprint $table): void {
-            $table->string('celular_contacto')->nullable();
-        });
-        Schema::table('ven_contratos', function (Blueprint $table): void {
-            $table->string('numero_prospecto')->nullable();
-            $table->integer('confirm_nac')->nullable();
-            $table->string('vendedor')->nullable();
-        });
-        Schema::create('ven_prospectos', function (Blueprint $table): void {
-            $table->string('no_cia');
-            $table->string('numero_prospecto');
-            $table->date('fecha_parto')->nullable();
-        });
-        Schema::create('lab_colectas', function (Blueprint $table): void {
-            $table->string('no_cia');
-            $table->string('numero_contrato');
-            $table->date('fecha_nacimiento')->nullable();
-            $table->string('serologia')->nullable();
-        });
-        Schema::create('users', function (Blueprint $table): void {
-            $table->string('empresa');
-            $table->string('identificacion');
-            $table->string('nombres');
-        });
+        $this->prepararListadoSerologia();
     }
 
     public function test_exige_autenticacion_para_consultar_el_detalle(): void
@@ -138,16 +102,5 @@ class DetalleSerologiaTest extends TestCase
     private function autenticar(): void
     {
         $this->actingAs(UserFactory::new()->make(['id' => 1, 'empresa' => '001']));
-    }
-
-    private function consultarListado(): TestResponse
-    {
-        $url = route('serologia');
-        $version = app(HandleInertiaRequests::class)->version(Request::create($url));
-
-        return $this->get($url, [
-            'X-Inertia' => 'true',
-            'X-Inertia-Version' => $version ?? '',
-        ]);
     }
 }
