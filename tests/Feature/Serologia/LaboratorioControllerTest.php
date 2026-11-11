@@ -107,6 +107,33 @@ class LaboratorioControllerTest extends TestCase
         $this->assertDatabaseHas('ope_tomas_serologicas', ['fecha_toma' => null]);
     }
 
+    public function test_usa_otro_laboratorio_si_el_elegido_no_tiene_sedes_activas(): void
+    {
+        $this->crearContratoPrueba();
+        $this->crearSedePrueba('99999999999', '02');
+
+        $this->withSession(['laboratorio.ruc' => '20330025213'])
+            ->post(route('laboratorio.marcar'), ['codigo' => '12345678', 'numero_toma' => 1])
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('ope_tomas_serologicas', [
+            'numero_toma' => 1, 'laboratorio_toma' => '99999999999', 'sede_toma' => '02',
+        ]);
+    }
+
+    public function test_usa_la_primera_sede_si_la_guardada_no_esta_activa(): void
+    {
+        $this->crearContratoPrueba();
+        $this->crearSedePrueba(sede: '01');
+        $this->crearSedePrueba(sede: '02');
+
+        $this->withSession(['laboratorio.ruc' => '20330025213', 'laboratorio.sede' => '07'])
+            ->post(route('laboratorio.marcar'), ['codigo' => '12345678', 'numero_toma' => 1])
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('ope_tomas_serologicas', [
+            'numero_toma' => 1, 'laboratorio_toma' => '20330025213', 'sede_toma' => '01',
+        ]);
+    }
+
     public function test_registra_la_muestra_y_no_sobrescribe_una_toma_repetida(): void
     {
         $this->crearContratoPrueba();

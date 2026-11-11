@@ -9,6 +9,7 @@ use App\Http\Requests\Serologia\MarcarTomaRequest;
 use App\Models\Contrato;
 use App\Models\Sede;
 use App\Models\Toma;
+use App\Serologia\SedeActivaLaboratorio;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -16,11 +17,9 @@ use Inertia\Response;
 
 class LaboratorioController extends Controller
 {
-    public const LABORATORIO_POR_DEFECTO = '20330025213';
-
-    public function index(Request $request): Response
+    public function index(Request $request, SedeActivaLaboratorio $sedeActiva): Response
     {
-        [$laboratorio, $sede] = $this->laboratorioYSede();
+        [$laboratorio, $sede] = $sedeActiva->actual();
 
         return Inertia::render('laboratorio', [
             'laboratorios' => Sede::laboratorios()->map(fn (object $fila): array => [
@@ -71,10 +70,10 @@ class LaboratorioController extends Controller
         );
     }
 
-    public function marcar(MarcarTomaRequest $request): RedirectResponse
+    public function marcar(MarcarTomaRequest $request, SedeActivaLaboratorio $sedeActiva): RedirectResponse
     {
         $datos = $request->validated();
-        [$laboratorio, $sede] = $this->laboratorioYSede();
+        [$laboratorio, $sede] = $sedeActiva->actual();
 
         if ($laboratorio === null || $sede === null) {
             return to_route('laboratorio.index')->withErrors([
@@ -110,24 +109,16 @@ class LaboratorioController extends Controller
         );
     }
 
-    public function sede(CambiarSedeRequest $request): RedirectResponse
+    public function sede(CambiarSedeRequest $request, SedeActivaLaboratorio $sedeActiva): RedirectResponse
     {
         $datos = $request->validated();
-        $sedes = Sede::deLaboratorio($datos['laboratorio']);
 
-        if ($sedes->isEmpty()) {
+        if (! $sedeActiva->elegir($datos['laboratorio'], $datos['sede'] ?? null)) {
             return to_route('laboratorio.index')->withErrors([
                 'laboratorio' => 'Ese laboratorio no tiene sedes activas.',
             ]);
         }
 
-        $sede = $sedes->firstWhere('codigo_sede', $datos['sede'] ?? null)
-            ? $datos['sede'] : $sedes->first()->codigo_sede;
-
-        $request->session()->put([
-            'laboratorio.ruc' => $datos['laboratorio'],
-            'laboratorio.sede' => $sede,
-        ]);
         $request->session()->forget('consulta_laboratorio');
 
         return to_route('laboratorio.index');
@@ -149,25 +140,5 @@ class LaboratorioController extends Controller
             'sede_toma' => $toma->dondeSeTomo(),
             'recien_marcada' => $recienMarcada,
         ];
-    }
-
-    /** @return array{0: ?string, 1: ?string} */
-    private function laboratorioYSede(): array
-    {
-        $laboratorio = session('laboratorio.ruc', self::LABORATORIO_POR_DEFECTO);
-        $sedes = Sede::deLaboratorio($laboratorio);
-
-        if ($sedes->isEmpty()) {
-            $laboratorio = Sede::laboratorios()->first()?->identificacion;
-            $sedes = $laboratorio ? Sede::deLaboratorio($laboratorio) : collect();
-        }
-
-        $sede = session('laboratorio.sede');
-
-        if (! $sedes->firstWhere('codigo_sede', $sede)) {
-            $sede = $sedes->first()?->codigo_sede;
-        }
-
-        return [$laboratorio, $sede];
     }
 }
