@@ -231,7 +231,9 @@ class RecordatorioSerologiaTest extends TestCase
 
         $correo->assertHasSubject('Recordatorio de toma de muestra para serología');
         $correo->assertSeeInHtml('Ana Ejemplo');
-        $correo->assertSeeInHtml(route('clientes.index'));
+        $correo->assertSeeInHtml('<a href="'.e(route('clientes.index')).'"', false);
+        $correo->assertSeeInHtml('Consultar mi serología');
+        $correo->assertDontSeeInHtml('<pre', false);
         $correo->assertSeeInText('tienes pendiente tu toma de muestra para serología');
     }
 

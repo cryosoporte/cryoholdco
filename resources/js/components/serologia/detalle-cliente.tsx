@@ -5,9 +5,6 @@ import {
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { EstadoCliente, obtenerEstadoCliente } from "./estado-cliente";
 import type { Resultado } from "./tipos";
 
@@ -61,44 +58,18 @@ function DatosCliente({ cliente }: { cliente: Resultado }) {
     ];
 
     return (
-        <>
-            <dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3">
-                {campos.map(([etiqueta, valor]) => (
-                    <div key={etiqueta}>
-                        <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            {etiqueta}
-                        </dt>
-                        <dd className="mt-1 break-words font-semibold">
-                            {valor ?? "—"}
-                        </dd>
-                    </div>
-                ))}
-            </dl>
-
-            {estado === "pendiente" && (
-                <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
-                    <div className="space-y-2">
-                        <Label htmlFor="detalle-fecha-parto">Fecha de parto real</Label>
-                        <Input
-                            id="detalle-fecha-parto"
-                            type="date"
-                            value={datos?.parto_real ?? ""}
-                            readOnly
-                            className="h-11"
-                        />
-                    </div>
-                    <Button variant="outline" type="button" disabled className="h-11">
-                        Guardar y mover plazo
-                    </Button>
+        <dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3">
+            {campos.map(([etiqueta, valor]) => (
+                <div key={etiqueta}>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {etiqueta}
+                    </dt>
+                    <dd className="mt-1 break-words font-semibold">
+                        {valor ?? "—"}
+                    </dd>
                 </div>
-            )}
-
-            {estado === "tomada" && (
-                <Button type="button" disabled className="h-11 justify-self-start">
-                    Resultado recibido
-                </Button>
-            )}
-        </>
+            ))}
+        </dl>
     );
 }
 

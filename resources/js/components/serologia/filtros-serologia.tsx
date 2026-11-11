@@ -71,7 +71,11 @@ export function FiltrosSerologia({
             </Select>
 
             {estadoSeleccionado && (
-                <Button variant="outline" onClick={onLimpiarEstado}>
+                <Button
+                    variant="outline"
+                    onClick={onLimpiarEstado}
+                    className="cursor-pointer"
+                >
                     Ver todos
                 </Button>
             )}

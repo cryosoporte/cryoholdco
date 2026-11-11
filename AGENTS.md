@@ -8,6 +8,7 @@
 This application is a Laravel application running on PHP 8.4. Always use the APIs that match the installed major version of each package — do not assume a version.
 
 Before relying on a package's API, confirm its installed version:
+
 - PHP packages: run `composer show --direct` to list direct dependencies with versions, or `composer show <vendor/package>` for a single package.
 - JS packages: check `package.json` for the installed versions.
 
@@ -52,7 +53,7 @@ Before relying on a package's API, confirm its installed version:
 
 - Execute PHP in app context for debugging and testing code. Do not create models without user approval, prefer tests with factories instead. Prefer existing Artisan commands over custom tinker code.
 - Always use single quotes to prevent shell expansion: `php artisan tinker --execute 'Your::code();'`
-  - Double quotes for PHP strings inside: `php artisan tinker --execute 'User::where("active", true)->count();'`
+    - Double quotes for PHP strings inside: `php artisan tinker --execute 'User::where("active", true)->count();'`
 
 === php rules ===
 
@@ -148,3 +149,41 @@ Before relying on a package's API, confirm its installed version:
 - IMPORTANT: Activate `inertia-react-development` when working with Inertia React client-side patterns.
 
 </laravel-boost-guidelines>
+
+# Arquitectura y desarrollo de Crioholdco
+
+## Alcance y criterio
+
+- Antes de proponer un cambio, sigue el flujo desde la ruta hasta el controlador, los datos, la pantalla y las pruebas que correspondan. Revisa cómo resuelven responsabilidades similares los archivos vecinos.
+- En una auditoría de solo lectura, cita el archivo y el método o componente, explica la dificultad concreta y propone el cambio mínimo. Indica qué comportamiento hay que conservar y cómo comprobarlo. Prioriza por beneficio y riesgo.
+- Refactoriza un flujo a la vez. Justifica cada extracción por la claridad que aporta, la duplicación que elimina o el comportamiento que permite probar de forma aislada. El tamaño de un archivo es una señal para revisar sus responsabilidades.
+- Aplica estas convenciones al código nuevo y a las partes que requiera la tarea. Evita renombres, movimientos, cambios de formato y limpiezas ajenas al flujo. Prefiere la estructura existente y nombres que describan la operación del negocio.
+
+## Nuevas funcionalidades y módulos
+
+- Identifica el flujo de usuario, quién puede ejecutarlo, qué datos necesita y qué resultado debe producir. Si amplía una responsabilidad de Clientes, Laboratorio o Serología, intégralo en ese módulo. Crea un módulo cuando el flujo tenga una responsabilidad de negocio propia.
+- Para un flujo web, registra rutas con nombre en `routes/web.php`, en el grupo que corresponda. Aplica autenticación, autorización y alcance por empresa en Laravel según el flujo. Valida las entradas en el servidor y envía a la pantalla solo los datos que necesita.
+- Sigue la estructura existente al crear una pantalla. Compón la página en `resources/js/pages`, reutiliza el layout adecuado y agrupa componentes y tipos propios en `resources/js/components/<modulo>`. Añade un acceso en la navegación correspondiente cuando el usuario deba poder llegar al módulo desde ahí.
+- Para formularios y listados nuevos, define las props y los estados que necesita la pantalla, como carga, errores de validación y resultados vacíos. Reutiliza los componentes y patrones de interacción del módulo más cercano.
+- Crea los archivos que requiera el flujo. Una ruta de consulta puede necesitar solo una acción y una pantalla. Añade un `FormRequest`, una clase de consulta o una operación de negocio cuando cumpla una de las responsabilidades descritas abajo.
+
+## Laravel
+
+- El controlador coordina la operación HTTP y construye la respuesta. Usa un FormRequest en app/Http/Requests cuando separar las reglas y mensajes de entrada permita leer mejor la acción o reutilizar la validación. Toma LoginRequest como referencia y conserva autorización, normalización, mensajes, redirecciones y respuestas de error. Las comprobaciones sobre el estado del negocio pertenecen al flujo que lo consulta o modifica.
+- Mantén relaciones y consultas ligadas a un modelo cerca del modelo cuando encajen con sus responsabilidades. Si una consulta de listado reúne varios modelos y crece lo suficiente para dificultar la lectura del flujo, evalúa una clase de consulta con nombre específico. Conserva filtros, alcance por empresa, orden, paginación y forma de los resultados.
+- Extrae una regla de negocio u operación de varios pasos cuando tenga una responsabilidad que se pueda nombrar y verificar por separado. Usa PlazoSerologia como ejemplo de una regla con nombre propio. Para lógica breve que solo sirve al flujo actual, considera mantenerla local. Evita agregar servicios o repositorios genéricos como requisito para cada controlador.
+- Preserva las rutas y los contratos que consume el frontend, incluidas las props de Inertia, los estados HTTP y los mensajes. En operaciones de escritura o envío, conserva las transacciones, el manejo de errores y el comportamiento ante reintentos que ya cubre el flujo.
+
+## React e Inertia
+
+- Usa resources/js/pages para componer pantallas y recibir props de Inertia. Coloca las piezas específicas de Clientes, Laboratorio o Serología junto a los componentes de su módulo y reutiliza los componentes existentes de components/ui para controles compartidos.
+- Extrae un componente cuando represente una parte reconocible de la interfaz con una responsabilidad y props claras. Mantén el estado cerca del lugar que lo usa y elévalo cuando varias piezas tengan que coordinarse.
+- Extrae un hook cuando el estado, los efectos o las peticiones formen un flujo cohesivo que convenga leer por separado. En filtros o formularios, comprueba carga, errores, cancelación y sincronización con los datos del servidor según corresponda. Conserva el comportamiento de navegación de Inertia.
+- Mantén funciones puras, constantes y tipos específicos cerca del módulo que los usa. Lleva a resources/js/lib las utilidades genuinamente compartidas y usa nombres que describan su propósito.
+
+## Verificación
+
+- Para una funcionalidad nueva, cubre el caso principal con una prueba de funcionalidad cuando intervenga Laravel. Comprueba también los casos relevantes de entradas inválidas, falta de permisos o datos de otra empresa. Para cambios de interfaz, verifica que el flujo se pueda completar desde su punto de entrada.
+- Usa las pruebas existentes del flujo como referencia antes y después de una refactorización. Añade cobertura focalizada si falta una comprobación para un comportamiento que el cambio podría romper.
+- En frontend, verifica la interacción afectada en su pantalla cuando esté disponible. Usa npm run build para comprobar la compilación cuando corresponda. En Laravel, ejecuta las pruebas de PHPUnit del flujo y sigue las indicaciones de Pint de Laravel Boost.
+- Al cerrar el cambio, resume el flujo añadido o la responsabilidad que se reorganizó y las comprobaciones ejecutadas. Señala cualquier comportamiento que quede por verificar.

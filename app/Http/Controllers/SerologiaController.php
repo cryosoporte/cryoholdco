@@ -22,160 +22,6 @@ class SerologiaController extends Controller
 {
     public function __construct(private readonly PlazoSerologia $plazoSerologia) {}
 
-    /**
-     * @param  Collection<int, object>  $filas
-     * @return Collection<string, object>
-     */
-    private function detallesDeLaPagina(Collection $filas, string $empresa): Collection
-    {
-        $contratos = $filas->pluck('numero_base')->filter()->unique()->values();
-        if ($contratos->isEmpty()) {
-            return collect();
-        }
-
-        return DB::table('VEN_CONTRATOS as C')
-            ->join('VEN_CLIENTES as CL', function (JoinClause $join): void {
-                $join->on('CL.NO_CIA', '=', 'C.NO_CIA')
-                    ->on('CL.IDENTIFICACION', '=', 'C.IDENTIFICACION1');
-            })
-            ->leftJoin('VEN_PROSPECTOS as P', function (JoinClause $join): void {
-                $join->on('P.NO_CIA', '=', 'C.NO_CIA')
-                    ->on('P.NUMERO_PROSPECTO', '=', 'C.NUMERO_PROSPECTO');
-            })
-            ->leftJoin('LAB_COLECTAS as L', function (JoinClause $join): void {
-                $join->on('L.NO_CIA', '=', 'C.NO_CIA')
-                    ->on('L.NUMERO_CONTRATO', '=', 'C.NUMERO_CONTRATO');
-            })
-            ->leftJoin('OPE_TOMAS_SEROLOGICAS as T', function (JoinClause $join): void {
-                $join->on('T.NO_CIA', '=', 'C.NO_CIA')
-                    ->on('T.NUMERO_CONTRATO_BASE', '=', 'C.NUMERO_BASE');
-            })
-            ->leftJoin('LAB_LABORATORIOS_SEDES as S', function (JoinClause $join): void {
-                $join->on('S.NO_CIA', '=', 'T.NO_CIA')
-                    ->on('S.IDENTIFICACION', '=', 'T.LABORATORIO_TOMA')
-                    ->on('S.CODIGO_SEDE', '=', 'T.SEDE_TOMA');
-            })
-            ->where('C.NO_CIA', $empresa)
-            ->whereIn('C.NUMERO_BASE', $contratos)
-            ->whereIn('C.SERVICIO', ['S', 'T'])
-            ->where('C.FECHA_CONTRATO', '>=', CarbonImmutable::create(2026, 1, 1, 0, 0, 0, 'America/Lima'))
-            ->select([
-                'C.NUMERO_BASE',
-                'C.IDENTIFICACION1 as identificacion',
-                'T.NUMERO_TOMA',
-                'CL.CELULAR_CONTACTO as celular',
-            ])
-            ->selectRaw('MAX(P.FECHA_PARTO) AS fpp_prospecto')
-            ->selectRaw('MAX(L.FECHA_NACIMIENTO) AS parto_colecta')
-            ->selectRaw('MAX(CASE WHEN C.CONFIRM_NAC = 1 THEN C.FECHA_NACIMIENTO END) AS parto_confirmado')
-            ->selectRaw('MAX(C.FECHA_NACIMIENTO) AS fecha_contrato_nacimiento')
-            ->selectRaw('MAX(S.DESCRIPCION_SEDE) AS sede_toma')
-            ->groupBy('C.NUMERO_BASE', 'C.IDENTIFICACION1', 'T.NUMERO_TOMA', 'CL.CELULAR_CONTACTO')
-            ->get()
-            ->keyBy($this->claveDetalle(...));
-    }
-
-    private function claveDetalle(object $fila): string
-    {
-        return serialize([$fila->numero_base, $fila->identificacion, (int) $fila->numero_toma]);
-    }
-
-    /**
-     * @return array{celular: ?string, fpp: ?string, parto_real: ?string, sede_toma: ?string, plazo: array{situacion: string, fecha_apertura: ?string, fecha_limite: ?string, dias_restantes: ?int, porcentaje_transcurrido: ?int, texto: string}}
-     */
-    private function formatearDetalle(?object $cliente, CarbonImmutable $hoy): array
-    {
-        $partoReal = $cliente?->parto_colecta ?? $cliente?->parto_confirmado;
-        $fpp = $cliente?->fpp_prospecto ?? ($partoReal === null ? $cliente?->fecha_contrato_nacimiento : null);
-        $partoReal = $partoReal === null ? null : substr($partoReal, 0, 10);
-        $fpp = $fpp === null ? null : substr($fpp, 0, 10);
-
-        return [
-            'celular' => trim($cliente?->celular ?? '') ?: null,
-            'fpp' => $fpp,
-            'parto_real' => $partoReal,
-            'sede_toma' => trim($cliente?->sede_toma ?? '') ?: null,
-            'plazo' => $this->plazoSerologia->calcular(
-                $partoReal ?? $fpp,
-                $hoy,
-                diasAntes: 10,
-                diasDespues: 30,
-            ),
-        ];
-    }
-
-    public function enviarRecordatorio(Request $request): JsonResponse
-    {
-        $datos = $request->validate([
-            'numero_base' => ['required', 'string', 'max:100'],
-            'identificacion' => ['required', 'string', 'max:100'],
-        ], [
-            'numero_base.required' => 'El cliente no tiene un número de contrato base.',
-            'identificacion.required' => 'Falta la identificación del cliente.',
-        ]);
-
-        abort_if(blank($request->user()->empresa), 403);
-
-        $cliente = DB::table('VEN_CONTRATOS as C1')
-            ->join('VEN_CLIENTES as C2', function ($join): void {
-                $join->on('C1.NO_CIA', '=', 'C2.NO_CIA')
-                    ->on('C1.IDENTIFICACION1', '=', 'C2.IDENTIFICACION');
-            })
-            ->where('C1.NO_CIA', $request->user()->empresa)
-            ->where('C1.NUMERO_BASE', $datos['numero_base'])
-            ->where('C2.IDENTIFICACION', $datos['identificacion'])
-            ->whereIn('C1.SERVICIO', ['S', 'T'])
-            ->where('C1.FECHA_CONTRATO', '>=', CarbonImmutable::create(2026, 1, 1, 0, 0, 0, 'America/Lima'))
-            ->select(['C2.NOMBRE', 'C2.MAIL_CONTACTO'])
-            ->first();
-
-        abort_if($cliente === null, 404);
-
-        $tieneMuestra = DB::table('OPE_TOMAS_SEROLOGICAS')
-            ->where('NO_CIA', $request->user()->empresa)
-            ->where('NUMERO_CONTRATO_BASE', $datos['numero_base'])
-            ->where(function (Builder $query): void {
-                $query->whereNotNull('FECHA_TOMA')->orWhereNotNull('FECHA_RESULTADO');
-            })
-            ->exists();
-
-        $tieneSerologia = DB::table('LAB_COLECTAS as L')
-            ->join('VEN_CONTRATOS as C', function ($join): void {
-                $join->on('C.NO_CIA', '=', 'L.NO_CIA')
-                    ->on('C.NUMERO_CONTRATO', '=', 'L.NUMERO_CONTRATO');
-            })
-            ->where('C.NO_CIA', $request->user()->empresa)
-            ->where('C.NUMERO_BASE', $datos['numero_base'])
-            ->whereNotNull('L.SEROLOGIA')
-            ->exists();
-
-        if ($tieneMuestra || $tieneSerologia) {
-            throw ValidationException::withMessages([
-                'recordatorio' => 'La muestra ya fue tomada o recibida. Actualiza los resultados.',
-            ]);
-        }
-
-        $correo = trim($cliente->mail_contacto ?? '');
-
-        if (Validator::make(['correo' => $correo], ['correo' => ['required', 'email']])->fails()) {
-            throw ValidationException::withMessages([
-                'recordatorio' => 'El cliente no tiene un correo de contacto válido registrado.',
-            ]);
-        }
-
-        try {
-            Mail::to($correo)->send(new RecordatorioSerologia($cliente->nombre));
-        } catch (Throwable $exception) {
-            report($exception);
-
-            return response()->json([
-                'message' => 'No se pudo enviar el recordatorio. Intenta de nuevo más tarde.',
-            ], 502);
-        }
-
-        return response()->json(['message' => 'Recordatorio enviado correctamente.']);
-    }
-
     public function index(Request $request): Response
     {
         $datos = $request->validate([
@@ -332,5 +178,159 @@ class SerologiaController extends Controller
             'asesor' => $asesor,
             'asesores' => $asesores,
         ]);
+    }
+
+    /**
+     * @param  Collection<int, object>  $filas
+     * @return Collection<string, object>
+     */
+    private function detallesDeLaPagina(Collection $filas, string $empresa): Collection
+    {
+        $contratos = $filas->pluck('numero_base')->filter()->unique()->values();
+        if ($contratos->isEmpty()) {
+            return collect();
+        }
+
+        return DB::table('VEN_CONTRATOS as C')
+            ->join('VEN_CLIENTES as CL', function (JoinClause $join): void {
+                $join->on('CL.NO_CIA', '=', 'C.NO_CIA')
+                    ->on('CL.IDENTIFICACION', '=', 'C.IDENTIFICACION1');
+            })
+            ->leftJoin('VEN_PROSPECTOS as P', function (JoinClause $join): void {
+                $join->on('P.NO_CIA', '=', 'C.NO_CIA')
+                    ->on('P.NUMERO_PROSPECTO', '=', 'C.NUMERO_PROSPECTO');
+            })
+            ->leftJoin('LAB_COLECTAS as L', function (JoinClause $join): void {
+                $join->on('L.NO_CIA', '=', 'C.NO_CIA')
+                    ->on('L.NUMERO_CONTRATO', '=', 'C.NUMERO_CONTRATO');
+            })
+            ->leftJoin('OPE_TOMAS_SEROLOGICAS as T', function (JoinClause $join): void {
+                $join->on('T.NO_CIA', '=', 'C.NO_CIA')
+                    ->on('T.NUMERO_CONTRATO_BASE', '=', 'C.NUMERO_BASE');
+            })
+            ->leftJoin('LAB_LABORATORIOS_SEDES as S', function (JoinClause $join): void {
+                $join->on('S.NO_CIA', '=', 'T.NO_CIA')
+                    ->on('S.IDENTIFICACION', '=', 'T.LABORATORIO_TOMA')
+                    ->on('S.CODIGO_SEDE', '=', 'T.SEDE_TOMA');
+            })
+            ->where('C.NO_CIA', $empresa)
+            ->whereIn('C.NUMERO_BASE', $contratos)
+            ->whereIn('C.SERVICIO', ['S', 'T'])
+            ->where('C.FECHA_CONTRATO', '>=', CarbonImmutable::create(2026, 1, 1, 0, 0, 0, 'America/Lima'))
+            ->select([
+                'C.NUMERO_BASE',
+                'C.IDENTIFICACION1 as identificacion',
+                'T.NUMERO_TOMA',
+                'CL.CELULAR_CONTACTO as celular',
+            ])
+            ->selectRaw('MAX(P.FECHA_PARTO) AS fpp_prospecto')
+            ->selectRaw('MAX(L.FECHA_NACIMIENTO) AS parto_colecta')
+            ->selectRaw('MAX(CASE WHEN C.CONFIRM_NAC = 1 THEN C.FECHA_NACIMIENTO END) AS parto_confirmado')
+            ->selectRaw('MAX(C.FECHA_NACIMIENTO) AS fecha_contrato_nacimiento')
+            ->selectRaw('MAX(S.DESCRIPCION_SEDE) AS sede_toma')
+            ->groupBy('C.NUMERO_BASE', 'C.IDENTIFICACION1', 'T.NUMERO_TOMA', 'CL.CELULAR_CONTACTO')
+            ->get()
+            ->keyBy($this->claveDetalle(...));
+    }
+
+    private function claveDetalle(object $fila): string
+    {
+        return serialize([$fila->numero_base, $fila->identificacion, (int) $fila->numero_toma]);
+    }
+
+    /**
+     * @return array{celular: ?string, fpp: ?string, parto_real: ?string, sede_toma: ?string, plazo: array{situacion: string, fecha_apertura: ?string, fecha_limite: ?string, dias_restantes: ?int, porcentaje_transcurrido: ?int, texto: string}}
+     */
+    private function formatearDetalle(?object $cliente, CarbonImmutable $hoy): array
+    {
+        $partoReal = $cliente?->parto_colecta ?? $cliente?->parto_confirmado;
+        $fpp = $cliente?->fpp_prospecto ?? ($partoReal === null ? $cliente?->fecha_contrato_nacimiento : null);
+        $partoReal = $partoReal === null ? null : substr($partoReal, 0, 10);
+        $fpp = $fpp === null ? null : substr($fpp, 0, 10);
+
+        return [
+            'celular' => trim($cliente?->celular ?? '') ?: null,
+            'fpp' => $fpp,
+            'parto_real' => $partoReal,
+            'sede_toma' => trim($cliente?->sede_toma ?? '') ?: null,
+            'plazo' => $this->plazoSerologia->calcular(
+                $partoReal ?? $fpp,
+                $hoy,
+                diasAntes: 10,
+                diasDespues: 30,
+            ),
+        ];
+    }
+
+    public function enviarRecordatorio(Request $request): JsonResponse
+    {
+        $datos = $request->validate([
+            'numero_base' => ['required', 'string', 'max:100'],
+            'identificacion' => ['required', 'string', 'max:100'],
+        ], [
+            'numero_base.required' => 'El cliente no tiene un número de contrato base.',
+            'identificacion.required' => 'Falta la identificación del cliente.',
+        ]);
+
+        abort_if(blank($request->user()->empresa), 403);
+
+        $cliente = DB::table('VEN_CONTRATOS as C1')
+            ->join('VEN_CLIENTES as C2', function ($join): void {
+                $join->on('C1.NO_CIA', '=', 'C2.NO_CIA')
+                    ->on('C1.IDENTIFICACION1', '=', 'C2.IDENTIFICACION');
+            })
+            ->where('C1.NO_CIA', $request->user()->empresa)
+            ->where('C1.NUMERO_BASE', $datos['numero_base'])
+            ->where('C2.IDENTIFICACION', $datos['identificacion'])
+            ->whereIn('C1.SERVICIO', ['S', 'T'])
+            ->where('C1.FECHA_CONTRATO', '>=', CarbonImmutable::create(2026, 1, 1, 0, 0, 0, 'America/Lima'))
+            ->select(['C2.NOMBRE', 'C2.MAIL_CONTACTO'])
+            ->first();
+
+        abort_if($cliente === null, 404);
+
+        $tieneMuestra = DB::table('OPE_TOMAS_SEROLOGICAS')
+            ->where('NO_CIA', $request->user()->empresa)
+            ->where('NUMERO_CONTRATO_BASE', $datos['numero_base'])
+            ->where(function (Builder $query): void {
+                $query->whereNotNull('FECHA_TOMA')->orWhereNotNull('FECHA_RESULTADO');
+            })
+            ->exists();
+
+        $tieneSerologia = DB::table('LAB_COLECTAS as L')
+            ->join('VEN_CONTRATOS as C', function ($join): void {
+                $join->on('C.NO_CIA', '=', 'L.NO_CIA')
+                    ->on('C.NUMERO_CONTRATO', '=', 'L.NUMERO_CONTRATO');
+            })
+            ->where('C.NO_CIA', $request->user()->empresa)
+            ->where('C.NUMERO_BASE', $datos['numero_base'])
+            ->whereNotNull('L.SEROLOGIA')
+            ->exists();
+
+        if ($tieneMuestra || $tieneSerologia) {
+            throw ValidationException::withMessages([
+                'recordatorio' => 'La muestra ya fue tomada o recibida. Actualiza los resultados.',
+            ]);
+        }
+
+        $correo = trim($cliente->mail_contacto ?? '');
+
+        if (Validator::make(['correo' => $correo], ['correo' => ['required', 'email']])->fails()) {
+            throw ValidationException::withMessages([
+                'recordatorio' => 'El cliente no tiene un correo de contacto válido registrado.',
+            ]);
+        }
+
+        try {
+            Mail::to($correo)->send(new RecordatorioSerologia($cliente->nombre));
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return response()->json([
+                'message' => 'No se pudo enviar el recordatorio. Intenta de nuevo más tarde.',
+            ], 502);
+        }
+
+        return response()->json(['message' => 'Recordatorio enviado correctamente.']);
     }
 }

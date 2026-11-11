@@ -13,7 +13,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 
-import { EstadoCliente } from "./estado-cliente";
+import { EstadoCliente, obtenerEstadoCliente } from "./estado-cliente";
 import { PlazoCliente } from "./plazo-cliente";
 import type { Resultado } from "./tipos";
 
@@ -89,6 +89,11 @@ export function TablaResultados({
             </TableHeader>
             <TableBody>
                 {resultados.map((fila) => {
+                    const estado = obtenerEstadoCliente(fila);
+                    const mostrarRecordatorio =
+                        estado === "pendiente" &&
+                        fila.plazo?.situacion !== "aun_no_abre";
+
                     return (
                         <TableRow
                             key={JSON.stringify([
@@ -110,7 +115,7 @@ export function TablaResultados({
                                     variant="link"
                                     type="button"
                                     onClick={() => onSeleccionarCliente(fila)}
-                                    className="h-auto justify-start whitespace-normal p-0 text-left font-semibold text-foreground hover:text-criocord-600 transition-all"
+                                    className="h-auto justify-start whitespace-normal p-0 text-left font-semibold text-foreground hover:text-criocord-600 transition-all cursor-pointer"
                                 >
                                     {fila.nombre}
                                 </Button>
@@ -133,8 +138,7 @@ export function TablaResultados({
                             </TableCell>
                             <TableCell>
                                 <div className="flex flex-wrap justify-end gap-2">
-                                    {fila.serologia === null &&
-                                    fila.fecha_toma === null ? (
+                                    {mostrarRecordatorio ? (
                                         <Button
                                             variant="outline"
                                             type="button"
@@ -161,26 +165,19 @@ export function TablaResultados({
                                                 ? "Enviando…"
                                                 : "Enviar recordatorio"}
                                         </Button>
-                                    ) : fila.fecha_toma !== null &&
-                                      fila.serologia === null ? (
+                                    ) : (
                                         <Button
                                             variant="outline"
-                                            disabled
-                                            title="Disponible próximamente"
+                                            type="button"
                                             className="cursor-pointer"
+                                            aria-label={`Ver detalle de ${fila.nombre}`}
+                                            onClick={() =>
+                                                onSeleccionarCliente(fila)
+                                            }
                                         >
-                                            Resultado recibido
+                                            Ver
                                         </Button>
-                                    ) : null}
-                                    <Button
-                                        variant="outline"
-                                        type="button"
-                                        className="cursor-pointer"
-                                        aria-label={`Ver detalle de ${fila.nombre}`}
-                                        onClick={() => onSeleccionarCliente(fila)}
-                                    >
-                                        Ver
-                                    </Button>
+                                    )}
                                 </div>
                             </TableCell>
                         </TableRow>
