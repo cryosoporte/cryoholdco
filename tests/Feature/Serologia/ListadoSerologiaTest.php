@@ -115,6 +115,14 @@ class ListadoSerologiaTest extends TestCase
             ->assertJsonPath('props.resultados.data.0.nombre', 'Cliente 21');
     }
 
+    public function test_devuelve_403_si_el_usuario_no_tiene_compania(): void
+    {
+        $this->crearClientesDeCadaEstado();
+        $this->actingAs(UserFactory::new()->make(['id' => 2, 'empresa' => null]));
+
+        $this->consultarListado()->assertForbidden();
+    }
+
     public function test_rechaza_un_estado_desconocido(): void
     {
         $this->from(route('serologia'))->get(route('serologia', ['estado' => 'otro']))

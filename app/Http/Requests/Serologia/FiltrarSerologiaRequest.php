@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Serologia;
 
+use App\Serologia\ListadoSerologia;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class FiltrarSerologiaRequest extends FormRequest
 {
@@ -21,7 +23,7 @@ class FiltrarSerologiaRequest extends FormRequest
     {
         return [
             'buscar' => ['nullable', 'string', 'max:100'],
-            'estado' => ['nullable', 'in:pendiente,tomada,recibido,por_vencer'],
+            'estado' => ['nullable', Rule::in(ListadoSerologia::ESTADOS)],
             'asesor' => ['nullable', 'string', 'max:100'],
         ];
     }
