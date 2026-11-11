@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Serologia\AlcanceSerologia;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
@@ -25,15 +26,6 @@ class Contrato extends Model
     ];
 
     public const DOC_DNI = 'DI';
-
-    /** Los únicos servicios que llevan serología. */
-    public const SERVICIOS_SEROLOGIA = ['S', 'T'];
-
-    public const DIAS_ANTES = 10;
-
-    public const DIAS_DESPUES = 0;
-
-    public const LABORATORIO_PRINCIPAL = '20330025213';
 
     /** Memoria de tomaActiva(): la toma y si ya se fue a buscar. */
     protected ?Toma $tomaEnMemoria = null;
@@ -63,7 +55,7 @@ class Contrato extends Model
             ])
             ->where('c.codigo_documento1', self::DOC_DNI)
             ->where('c.identificacion1', $dni)
-            ->whereIn('c.servicio', ['S', 'T'])
+            ->whereIn('c.servicio', AlcanceSerologia::SERVICIOS)
             ->orderByDesc('c.fecha_contrato')
             ->first();
     }
@@ -89,7 +81,7 @@ class Contrato extends Model
                 'cl.nombre as nombre_completo',
                 'cl.nombre_corto as primer_nombre',
             ])
-            ->whereIn('c.servicio', self::SERVICIOS_SEROLOGIA);
+            ->whereIn('c.servicio', AlcanceSerologia::SERVICIOS);
 
         if ($digitos === $texto && strlen($digitos) === 8) {
             $query->where('c.codigo_documento1', self::DOC_DNI)
@@ -138,7 +130,7 @@ class Contrato extends Model
             })
             ->select('cp.alias', 'l.codigo_sede', 'l.descripcion_sede', 'l.direccion_sede', 'l.ciudad')
             ->where('l.no_cia', $this->no_cia)
-            ->where('l.estado', 'A');
+            ->where('l.estado', Sede::ESTADO_ACTIVA);
 
         $ciudad = $this->ciudad_laboratorio;
 
@@ -174,10 +166,5 @@ class Contrato extends Model
     public function estado(): string
     {
         return $this->tomaActiva()?->estado() ?? 'sin_registro';
-    }
-
-    public function muestraTomada(): bool
-    {
-        return in_array($this->estado(), ['tomada', 'recibido'], true);
     }
 }

@@ -4,6 +4,7 @@ namespace Tests\Feature\Serologia;
 
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class LaboratorioControllerTest extends TestCase
@@ -32,6 +33,30 @@ class LaboratorioControllerTest extends TestCase
         $this->post(route('laboratorio.consultar'), ['codigo' => 'INEXISTENTE'])
             ->assertRedirectToRoute('laboratorio.index')
             ->assertSessionHasErrors(['codigo' => 'No es clienta de Criocord, o el código está mal escrito. Prueba con el DNI.']);
+    }
+
+    #[DataProvider('serviciosConSerologia')]
+    public function test_solo_encuentra_contratos_de_servicios_con_serologia(string $servicio, bool $encontrado): void
+    {
+        $this->crearContratoPrueba();
+        DB::table('ven_contratos')->update(['servicio' => $servicio]);
+
+        $respuesta = $this->post(route('laboratorio.consultar'), ['codigo' => 'PE-CR-2026-000001-0'])
+            ->assertRedirectToRoute('laboratorio.index');
+
+        $encontrado
+            ? $respuesta->assertSessionHas('consulta_laboratorio.numero_contrato', 'PE-CR-2026-000001-0')
+            : $respuesta->assertSessionHasErrors(['codigo' => 'No es clienta de Criocord, o el código está mal escrito. Prueba con el DNI.']);
+    }
+
+    /** @return array<string, array{0: string, 1: bool}> */
+    public static function serviciosConSerologia(): array
+    {
+        return [
+            'sangre' => ['S', true],
+            'tejido' => ['T', true],
+            'otro servicio' => ['X', false],
+        ];
     }
 
     public function test_impide_tomar_una_muestra_sin_registro(): void

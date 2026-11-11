@@ -46,6 +46,30 @@ class ClienteControllerTest extends TestCase
             ->assertSessionHasErrors(['dni' => 'No encontramos ese DNI. Revísalo o escríbenos por WhatsApp.']);
     }
 
+    #[DataProvider('serviciosConSerologia')]
+    public function test_solo_encuentra_contratos_de_servicios_con_serologia(string $servicio, bool $encontrado): void
+    {
+        $this->crearContratoPrueba();
+        DB::table('ven_contratos')->update(['servicio' => $servicio]);
+
+        $respuesta = $this->post(route('clientes.consultar'), ['dni' => '12345678'])
+            ->assertRedirectToRoute('clientes.index');
+
+        $encontrado
+            ? $respuesta->assertSessionHas('consulta_cliente.dni', '12345678')
+            : $respuesta->assertSessionHasErrors(['dni' => 'No encontramos ese DNI. Revísalo o escríbenos por WhatsApp.']);
+    }
+
+    /** @return array<string, array{0: string, 1: bool}> */
+    public static function serviciosConSerologia(): array
+    {
+        return [
+            'sangre' => ['S', true],
+            'tejido' => ['T', true],
+            'otro servicio' => ['X', false],
+        ];
+    }
+
     public function test_entrega_la_ficha_y_sedes_como_props_sin_exponer_el_modelo_completo(): void
     {
         $this->crearContratoPrueba();

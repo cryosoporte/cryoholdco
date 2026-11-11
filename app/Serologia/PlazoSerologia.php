@@ -16,7 +16,7 @@ class PlazoSerologia
         ?string $fechaResultado,
         CarbonImmutable $hoy
     ): array {
-        if ($serologia === 'S') {
+        if ($serologia === AlcanceSerologia::SEROLOGIA_RECIBIDA) {
             $situacion = 'recibido';
             $fecha = $fechaResultado;
             $prefijo = 'Resultado recibido el ';
@@ -30,7 +30,7 @@ class PlazoSerologia
 
         $texto = $fecha === null
             ? 'Fecha de resultado no registrada'
-            : $prefijo.CarbonImmutable::createFromFormat('!Y-m-d', $fecha, 'America/Lima')
+            : $prefijo.CarbonImmutable::createFromFormat('!Y-m-d', $fecha, AlcanceSerologia::ZONA_HORARIA)
                 ->locale('es')->translatedFormat('j M Y');
 
         return [
@@ -63,8 +63,8 @@ class PlazoSerologia
             ];
         }
 
-        $hoy = $hoy->setTimezone('America/Lima')->startOfDay();
-        $nacimiento = CarbonImmutable::createFromFormat('!Y-m-d', $fechaNacimiento, 'America/Lima');
+        $hoy = $hoy->setTimezone(AlcanceSerologia::ZONA_HORARIA)->startOfDay();
+        $nacimiento = CarbonImmutable::createFromFormat('!Y-m-d', $fechaNacimiento, AlcanceSerologia::ZONA_HORARIA);
         $apertura = $nacimiento->subDays($diasAntes);
         $limite = $nacimiento->addDays($diasDespues);
         $diasRestantes = (int) $hoy->diffInDays($limite, false);

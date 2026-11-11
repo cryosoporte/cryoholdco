@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Serologia\EnviarRecordatorioRequest;
 use App\Http\Requests\Serologia\FiltrarSerologiaRequest;
 use App\Mail\RecordatorioSerologia;
+use App\Serologia\AlcanceSerologia;
 use App\Serologia\PlazoSerologia;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
@@ -52,10 +53,10 @@ class SerologiaController extends Controller
                     ->on('C1.NO_CIA', '=', 'U.EMPRESA');
             })
             ->where('C1.NO_CIA', $empresa)
-            ->whereIn('C1.SERVICIO', ['S', 'T'])
+            ->whereIn('C1.SERVICIO', AlcanceSerologia::SERVICIOS)
             ->whereRaw(
                 "C1.FECHA_CONTRATO >= TO_DATE(?, 'DD/MM/YYYY')",
-                ['01/01/2026']
+                [AlcanceSerologia::fechaInicio()->format('d/m/Y')]
             )
             ->select([
                 'C1.NO_CIA',
@@ -98,7 +99,7 @@ class SerologiaController extends Controller
                 $query->where('asesor_dni', $asesor);
             });
 
-        $hoy = CarbonImmutable::today('America/Lima');
+        $hoy = CarbonImmutable::today(AlcanceSerologia::ZONA_HORARIA);
         $fecha_hace_7_dias = $hoy->subDays(7);
 
         $conteos = [
@@ -111,7 +112,7 @@ class SerologiaController extends Controller
                 ->whereNotNull('fecha_toma')
                 ->count(),
             'recibido' => (clone $base)
-                ->where('serologia', 'S')
+                ->where('serologia', AlcanceSerologia::SEROLOGIA_RECIBIDA)
                 ->count(),
             'por_vencer' => (clone $base)
                 ->whereNull('serologia')
@@ -131,7 +132,7 @@ class SerologiaController extends Controller
                     ->whereNotNull('fecha_toma');
             })
             ->when($estado === 'recibido', function (Builder $query): void {
-                $query->where('serologia', 'S');
+                $query->where('serologia', AlcanceSerologia::SEROLOGIA_RECIBIDA);
             })
             ->when($estado === 'por_vencer', function (Builder $query) use ($fecha_hace_7_dias, $hoy): void {
                 $query->whereNull('serologia')
@@ -213,8 +214,8 @@ class SerologiaController extends Controller
             })
             ->where('C.NO_CIA', $empresa)
             ->whereIn('C.NUMERO_BASE', $contratos)
-            ->whereIn('C.SERVICIO', ['S', 'T'])
-            ->where('C.FECHA_CONTRATO', '>=', CarbonImmutable::create(2026, 1, 1, 0, 0, 0, 'America/Lima'))
+            ->whereIn('C.SERVICIO', AlcanceSerologia::SERVICIOS)
+            ->where('C.FECHA_CONTRATO', '>=', AlcanceSerologia::fechaInicio())
             ->select([
                 'C.NUMERO_BASE',
                 'C.IDENTIFICACION1 as identificacion',
@@ -274,8 +275,8 @@ class SerologiaController extends Controller
             ->where('C1.NO_CIA', $request->user()->empresa)
             ->where('C1.NUMERO_BASE', $datos['numero_base'])
             ->where('C2.IDENTIFICACION', $datos['identificacion'])
-            ->whereIn('C1.SERVICIO', ['S', 'T'])
-            ->where('C1.FECHA_CONTRATO', '>=', CarbonImmutable::create(2026, 1, 1, 0, 0, 0, 'America/Lima'))
+            ->whereIn('C1.SERVICIO', AlcanceSerologia::SERVICIOS)
+            ->where('C1.FECHA_CONTRATO', '>=', AlcanceSerologia::fechaInicio())
             ->select(['C2.NOMBRE', 'C2.MAIL_CONTACTO'])
             ->first();
 
