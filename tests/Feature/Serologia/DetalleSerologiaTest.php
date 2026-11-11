@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\Feature\Serologia;
 
 use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;

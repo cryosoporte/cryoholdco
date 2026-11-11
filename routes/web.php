@@ -1,9 +1,9 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\ClienteController;
-use App\Http\Controllers\LaboratorioController;
-use App\Http\Controllers\SerologiaController;
+use App\Http\Controllers\Serologia\ClienteController;
+use App\Http\Controllers\Serologia\LaboratorioController;
+use App\Http\Controllers\Serologia\SerologiaController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 

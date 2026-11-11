@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\Feature\Serologia;
 
 use App\Mail\RecordatorioSerologia;
 use Database\Factories\UserFactory;

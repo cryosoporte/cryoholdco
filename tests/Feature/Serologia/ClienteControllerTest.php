@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\Feature\Serologia;
 
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;

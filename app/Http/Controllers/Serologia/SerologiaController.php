@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Serologia;
 
+use App\Http\Controllers\Controller;
 use App\Mail\RecordatorioSerologia;
-use App\PlazoSerologia;
+use App\Serologia\PlazoSerologia;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;

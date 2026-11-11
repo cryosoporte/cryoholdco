@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Serologia;
 
+use App\Http\Controllers\Controller;
 use App\Models\Contrato;
 use App\Models\Sede;
 use App\Models\Toma;

@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Serologia;
 
-use App\Http\Requests\ConsultarClienteRequest;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Serologia\ConsultarClienteRequest;
 use App\Models\Contrato;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
