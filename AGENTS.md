@@ -159,17 +159,56 @@ Before relying on a package's API, confirm its installed version:
 - Refactoriza un flujo a la vez. Justifica cada extracción por la claridad que aporta, la duplicación que elimina o el comportamiento que permite probar de forma aislada. El tamaño de un archivo es una señal para revisar sus responsabilidades.
 - Aplica estas convenciones al código nuevo y a las partes que requiera la tarea. Evita renombres, movimientos, cambios de formato y limpiezas ajenas al flujo. Prefiere la estructura existente y nombres que describan la operación del negocio.
 
+## Estructura del proyecto
+
+En el backend se agrupa por módulo de negocio y en el frontend por pantalla. Hoy el módulo de negocio es Serología, que reúne tres pantallas: el portal de Clientes, el mostrador de Laboratorio y el panel interno de Serología.
+
+```
+app/Http/Controllers/<Modulo>/       solo HTTP: valida, autoriza, llama y responde
+app/Http/Requests/<Modulo>/          un FormRequest por acción que recibe datos
+app/<Modulo>/                        reglas, consultas y operaciones con nombre propio
+app/Models/                          relaciones y consultas propias de un modelo
+resources/js/pages/                  una pantalla por ruta; compone y recibe props
+resources/js/components/<pantalla>/  componentes, tipos.ts, hooks y config de esa pantalla
+resources/js/components/ui/          controles compartidos (shadcn)
+resources/js/hooks/, resources/js/lib/  solo lo que usan varias pantallas
+resources/js/types/                  props compartidas de Inertia (InertiaConfig)
+tests/Feature/<Modulo>/, tests/Unit/<Modulo>/
+```
+
+| Necesitas… | Va en | Ejemplo existente |
+|---|---|---|
+| Validar las entradas de una acción | `app/Http/Requests/<Modulo>/` | `ConsultarContratoRequest`, `EnviarRecordatorioRequest` |
+| Una regla de negocio con nombre | `app/<Modulo>/` | `PlazoSerologia` |
+| Constantes que delimitan el negocio | Clase de alcance del módulo | `AlcanceSerologia` (servicios, fecha de inicio, zona horaria) |
+| Un listado con filtros, conteos y paginación | Clase de consulta | `ListadoSerologia` |
+| Una operación de varios pasos | Clase de operación | `EnviarRecordatorioSerologia` |
+| Estado que vive en la sesión | Clase con nombre propio | `SedeActivaLaboratorio` |
+| Estado, efectos o peticiones de una pantalla | Hook en `components/<pantalla>/` | `use-filtros-serologia.ts`, `use-lector-qr.ts` |
+| Un acceso en Operaciones o en el menú lateral | `modulosOperaciones` | `components/operaciones/modulos.ts` |
+
+Las clases de `app/<Modulo>/` se reciben como parámetro de la acción del controlador y Laravel las construye. Las decisiones HTTP que dependen del usuario, como el 403 sin empresa, se quedan en el controlador.
+
 ## Nuevas funcionalidades y módulos
 
-- Identifica el flujo de usuario, quién puede ejecutarlo, qué datos necesita y qué resultado debe producir. Si amplía una responsabilidad de Clientes, Laboratorio o Serología, intégralo en ese módulo. Crea un módulo cuando el flujo tenga una responsabilidad de negocio propia.
+- Identifica el flujo de usuario, quién puede ejecutarlo, qué datos necesita y qué resultado debe producir. Si amplía una responsabilidad de un módulo existente, intégralo en sus carpetas según la estructura del proyecto. Crea un módulo cuando el flujo tenga una responsabilidad de negocio propia.
 - Para un flujo web, registra rutas con nombre en `routes/web.php`, en el grupo que corresponda. Aplica autenticación, autorización y alcance por empresa en Laravel según el flujo. Valida las entradas en el servidor y envía a la pantalla solo los datos que necesita.
-- Sigue la estructura existente al crear una pantalla. Compón la página en `resources/js/pages`, reutiliza el layout adecuado y agrupa componentes y tipos propios en `resources/js/components/<modulo>`. Añade un acceso en la navegación correspondiente cuando el usuario deba poder llegar al módulo desde ahí.
+- Sigue la estructura existente al crear una pantalla. Compón la página en `resources/js/pages`, reutiliza el layout adecuado y agrupa componentes y tipos propios en `resources/js/components/<pantalla>`. Cuando el usuario deba llegar desde Operaciones, añade una entrada en `modulosOperaciones`; con `enMenuLateral` aparece también en el menú lateral.
 - Para formularios y listados nuevos, define las props y los estados que necesita la pantalla, como carga, errores de validación y resultados vacíos. Reutiliza los componentes y patrones de interacción del módulo más cercano.
 - Crea los archivos que requiera el flujo. Una ruta de consulta puede necesitar solo una acción y una pantalla. Añade un `FormRequest`, una clase de consulta o una operación de negocio cuando cumpla una de las responsabilidades descritas abajo.
 
+### Pasos para un módulo nuevo
+
+1. Registra las rutas con nombre en `routes/web.php`, en el grupo público o en el de `auth`.
+2. Crea el controlador en `app/Http/Controllers/<Modulo>/` y un FormRequest en `app/Http/Requests/<Modulo>/` por cada acción que reciba datos.
+3. Coloca las reglas, consultas y operaciones en `app/<Modulo>/`. Filtra siempre por la empresa del usuario y define las constantes del negocio en un solo lugar.
+4. Compón la página en `resources/js/pages/` y sus componentes, tipos y hooks en `resources/js/components/<pantalla>/`.
+5. Si se entra desde Operaciones, añade su entrada en `modulosOperaciones`.
+6. Escribe las pruebas en `tests/Feature/<Modulo>/`: caso principal, entrada inválida, falta de permisos y datos de otra empresa.
+
 ## Laravel
 
-- El controlador coordina la operación HTTP y construye la respuesta. Usa un FormRequest en app/Http/Requests cuando separar las reglas y mensajes de entrada permita leer mejor la acción o reutilizar la validación. Toma LoginRequest como referencia y conserva autorización, normalización, mensajes, redirecciones y respuestas de error. Las comprobaciones sobre el estado del negocio pertenecen al flujo que lo consulta o modifica.
+- El controlador coordina la operación HTTP y construye la respuesta. Usa un FormRequest en `app/Http/Requests/<Modulo>/` cuando separar las reglas y mensajes de entrada permita leer mejor la acción o reutilizar la validación. Toma LoginRequest como referencia y conserva autorización, normalización, mensajes, redirecciones y respuestas de error. Las comprobaciones sobre el estado del negocio pertenecen al flujo que lo consulta o modifica.
 - Mantén relaciones y consultas ligadas a un modelo cerca del modelo cuando encajen con sus responsabilidades. Si una consulta de listado reúne varios modelos y crece lo suficiente para dificultar la lectura del flujo, evalúa una clase de consulta con nombre específico. Conserva filtros, alcance por empresa, orden, paginación y forma de los resultados.
 - Extrae una regla de negocio u operación de varios pasos cuando tenga una responsabilidad que se pueda nombrar y verificar por separado. Usa PlazoSerologia como ejemplo de una regla con nombre propio. Para lógica breve que solo sirve al flujo actual, considera mantenerla local. Evita agregar servicios o repositorios genéricos como requisito para cada controlador.
 - Preserva las rutas y los contratos que consume el frontend, incluidas las props de Inertia, los estados HTTP y los mensajes. En operaciones de escritura o envío, conserva las transacciones, el manejo de errores y el comportamiento ante reintentos que ya cubre el flujo.
@@ -187,3 +226,12 @@ Before relying on a package's API, confirm its installed version:
 - Usa las pruebas existentes del flujo como referencia antes y después de una refactorización. Añade cobertura focalizada si falta una comprobación para un comportamiento que el cambio podría romper.
 - En frontend, verifica la interacción afectada en su pantalla cuando esté disponible. Usa npm run build para comprobar la compilación cuando corresponda. En Laravel, ejecuta las pruebas de PHPUnit del flujo y sigue las indicaciones de Pint de Laravel Boost.
 - Al cerrar el cambio, resume el flujo añadido o la responsabilidad que se reorganizó y las comprobaciones ejecutadas. Señala cualquier comportamiento que quede por verificar.
+- PHP se ejecuta en Windows: `php artisan test --compact` y `vendor/bin/pint --dirty --format agent`. Node se ejecuta en el contenedor `laravel_app`, porque `node_modules` se instaló desde Docker: `docker exec laravel_app npm run typecheck` y `docker exec laravel_app npm run build`.
+
+## Glosario del negocio
+
+Criocord criopreserva células madre. Algunos códigos usan la misma letra con significados distintos:
+
+- `VEN_CONTRATOS.SERVICIO`: `S` = Sangre y `T` = Tejido. Los dos servicios llevan prueba serológica (`AlcanceSerologia::SERVICIOS`).
+- `LAB_COLECTAS.SEROLOGIA = 'S'`: significa «Sí», la clienta ya pasó su prueba serológica (`AlcanceSerologia::SEROLOGIA_RECIBIDA`). No tiene relación con el servicio Sangre.
+- La lista «Tomas del día» del mostrador muestra por ahora solo Sangre (`Toma::SERVICIO_TOMAS_DEL_DIA`).
