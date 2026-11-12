@@ -34,8 +34,26 @@ class ClienteControllerTest extends TestCase
     {
         return [
             'vacio' => [null, 'Escribe tu DNI.'],
-            'corto' => ['123', 'El DNI debe tener 8 dígitos.'],
-            'letras' => ['abcdefgh', 'El DNI debe tener 8 dígitos.'],
+            'largo' => [str_repeat('1', 21), 'El DNI puede tener hasta 20 caracteres.'],
+            'simbolos' => ['1234-5678', 'El DNI solo puede tener letras y números.'],
+        ];
+    }
+
+    #[DataProvider('dnisValidos')]
+    public function test_acepta_documentos_de_hasta_20_letras_o_numeros(string $dni): void
+    {
+        $this->post(route('clientes.consultar'), ['dni' => $dni])
+            ->assertRedirectToRoute('clientes.index')
+            ->assertSessionHasErrors(['dni' => 'No encontramos ese documento. Revísalo o escríbenos por WhatsApp.']);
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function dnisValidos(): array
+    {
+        return [
+            'corto' => ['123'],
+            'letras' => ['AB123456789'],
+            'veinte' => [str_repeat('9', 20)],
         ];
     }
 
@@ -43,7 +61,7 @@ class ClienteControllerTest extends TestCase
     {
         $this->post(route('clientes.consultar'), ['dni' => '12345678'])
             ->assertRedirectToRoute('clientes.index')
-            ->assertSessionHasErrors(['dni' => 'No encontramos ese DNI. Revísalo o escríbenos por WhatsApp.']);
+            ->assertSessionHasErrors(['dni' => 'No encontramos ese documento. Revísalo o escríbenos por WhatsApp.']);
     }
 
     #[DataProvider('serviciosConSerologia')]
@@ -57,7 +75,7 @@ class ClienteControllerTest extends TestCase
 
         $encontrado
             ? $respuesta->assertSessionHas('consulta_cliente.dni', '12345678')
-            : $respuesta->assertSessionHasErrors(['dni' => 'No encontramos ese DNI. Revísalo o escríbenos por WhatsApp.']);
+            : $respuesta->assertSessionHasErrors(['dni' => 'No encontramos ese documento. Revísalo o escríbenos por WhatsApp.']);
     }
 
     /** @return array<string, array{0: string, 1: bool}> */
@@ -67,6 +85,32 @@ class ClienteControllerTest extends TestCase
             'sangre' => ['S', true],
             'tejido' => ['T', true],
             'otro servicio' => ['X', false],
+        ];
+    }
+
+    #[DataProvider('documentosDeCualquierTipo')]
+    public function test_encuentra_el_contrato_por_identificacion_sin_importar_el_tipo_de_documento(?string $tipoDocumento, string $identificacion): void
+    {
+        $this->crearContratoPrueba();
+        DB::table('ven_contratos')->update([
+            'codigo_documento1' => $tipoDocumento,
+            'identificacion1' => $identificacion,
+        ]);
+
+        $this->post(route('clientes.consultar'), ['dni' => $identificacion])
+            ->assertRedirectToRoute('clientes.index')
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('consulta_cliente.dni', $identificacion);
+    }
+
+    /** @return array<string, array{0: ?string, 1: string}> */
+    public static function documentosDeCualquierTipo(): array
+    {
+        return [
+            'carne de extranjeria' => ['CE', 'AB1234567890'],
+            'pasaporte' => ['PS', 'P12345678'],
+            'otro' => ['OT', '98765432109876543210'],
+            'sin tipo' => [null, '87654321'],
         ];
     }
 

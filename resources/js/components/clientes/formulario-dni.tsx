@@ -46,14 +46,16 @@ export function FormularioDni() {
                                 onChange={(evento) =>
                                     formulario.setData(
                                         "dni",
-                                        evento.target.value.replace(/\D/g, ""),
+                                        evento.target.value.replace(
+                                            /[^a-zA-Z0-9]/g,
+                                            "",
+                                        ),
                                     )
                                 }
-                                maxLength={8}
-                                inputMode="numeric"
+                                required
+                                maxLength={20}
                                 autoComplete="off"
                                 autoFocus
-                                placeholder="8 dígitos"
                                 className="h-11 font-mono text-lg tracking-widest"
                                 aria-invalid={!!formulario.errors.dni}
                                 aria-describedby={
@@ -65,7 +67,7 @@ export function FormularioDni() {
                             />
                             <Button
                                 type="submit"
-                                className="h-11"
+                                className="h-11 cursor-pointer"
                                 disabled={formulario.processing}
                             >
                                 {formulario.processing && (

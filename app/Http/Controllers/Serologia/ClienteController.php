@@ -27,7 +27,7 @@ class ClienteController extends Controller
 
         if (! $contrato) {
             return to_route('clientes.index')->withErrors([
-                'dni' => 'No encontramos ese DNI. Revísalo o escríbenos por WhatsApp.',
+                'dni' => 'No encontramos ese documento. Revísalo o escríbenos por WhatsApp.',
             ]);
         }
 

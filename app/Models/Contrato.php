@@ -53,7 +53,6 @@ class Contrato extends Model
                 'cl.nombre as nombre_completo',
                 'cl.nombre_corto as primer_nombre',
             ])
-            ->where('c.codigo_documento1', self::DOC_DNI)
             ->where('c.identificacion1', $dni)
             ->whereIn('c.servicio', AlcanceSerologia::SERVICIOS)
             ->orderByDesc('c.fecha_contrato')

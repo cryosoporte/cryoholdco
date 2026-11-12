@@ -20,7 +20,7 @@ class ConsultarClienteRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'dni' => ['required', 'digits:8'],
+            'dni' => ['required', 'string', 'alpha_num:ascii', 'max:20'],
         ];
     }
 
@@ -33,7 +33,9 @@ class ConsultarClienteRequest extends FormRequest
     {
         return [
             'dni.required' => 'Escribe tu DNI.',
-            'dni.digits' => 'El DNI debe tener 8 dígitos.',
+            'dni.string' => 'El DNI solo puede tener letras y números.',
+            'dni.alpha_num' => 'El DNI solo puede tener letras y números.',
+            'dni.max' => 'El DNI puede tener hasta 20 caracteres.',
         ];
     }
 }

@@ -23,7 +23,7 @@ abstract class TestCase extends BaseTestCase
             $table->string('numero_contrato');
             $table->string('numero_base');
             $table->string('identificacion1');
-            $table->string('codigo_documento1');
+            $table->string('codigo_documento1')->nullable();
             $table->string('servicio');
             $table->date('fecha_contrato');
             $table->date('fecha_nacimiento')->nullable();
