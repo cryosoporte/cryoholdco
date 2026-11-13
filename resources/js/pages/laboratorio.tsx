@@ -3,6 +3,7 @@ import { useForm, usePage } from "@inertiajs/react";
 import { route } from "ziggy-js";
 import LaboratorioLayout from "@/layouts/laboratorio-layout";
 import { SelectorSede } from "@/components/laboratorio/selector-sede";
+import { SesionLaboratorio } from "@/components/laboratorio/sesion-laboratorio";
 import { BuscadorContrato } from "@/components/laboratorio/buscador-contrato";
 import { SemaforoToma } from "@/components/laboratorio/semaforo-toma";
 import { TomasDelDia } from "@/components/laboratorio/tomas-del-dia";
@@ -15,41 +16,42 @@ export default function Laboratorio(props: LaboratorioProps) {
     const [consultando, setConsultando] = useState(false);
     const [marcando, setMarcando] = useState(false);
     const [resultadoVisible, setResultadoVisible] = useState(true);
-    const contexto = useForm({
-        laboratorio: props.laboratorio ?? "",
-        sede: props.sede ?? "",
-    });
+    const contexto = useForm({ sede: props.sede ?? "" });
     const { errorPeticion, opcionesPeticion } = useErroresPeticion();
     const ocupado = consultando || marcando || contexto.processing;
-    const sinSede = props.laboratorio === null || props.sede === null;
+    const sinSede = props.sede === null;
 
     return (
         <LaboratorioLayout
             actions={
-                <SelectorSede
-                    {...props}
-                    disabled={ocupado}
-                    onCambiar={(laboratorio, sede) => {
-                        if (ocupado) {
-                            return;
-                        }
-                        contexto.transform(() => ({
-                            laboratorio,
-                            sede: sede ?? "",
-                        }));
-                        contexto.post(route("laboratorio.sede"), {
-                            ...opcionesPeticion,
-                            replace: true,
-                            preserveScroll: true,
-                        });
-                    }}
-                />
+                <div className="flex w-full flex-wrap items-end gap-3 sm:w-auto">
+                    <SelectorSede
+                        sedes={props.sedes}
+                        sede={props.sede}
+                        disabled={ocupado}
+                        onCambiar={(sede) => {
+                            if (ocupado) {
+                                return;
+                            }
+                            contexto.transform(() => ({ sede }));
+                            contexto.post(route("laboratorio.sede"), {
+                                ...opcionesPeticion,
+                                replace: true,
+                                preserveScroll: true,
+                            });
+                        }}
+                    />
+                    <SesionLaboratorio
+                        ruc={props.laboratorio}
+                        nombre={props.nombre_laboratorio}
+                        disabled={ocupado}
+                    />
+                </div>
             }
         >
             <div className="space-y-5">
                 <FormError
                     message={
-                        errors.laboratorio ??
                         errors.sede ??
                         errors.numero_toma ??
                         errorPeticion

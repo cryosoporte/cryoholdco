@@ -1,5 +1,6 @@
 import AppLayout from "@/layouts/app-layout";
 import { AccesosModulos } from "@/components/operaciones/accesos-modulos";
+import { modulosOperaciones } from "@/components/operaciones/modulos";
 
 export default function Operaciones() {
     return (
@@ -11,7 +12,7 @@ export default function Operaciones() {
                         Selecciona un módulo para continuar.
                     </p>
                 </div>
-                <AccesosModulos />
+                <AccesosModulos modulos={modulosOperaciones} />
             </div>
         </AppLayout>
     );

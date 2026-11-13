@@ -89,6 +89,7 @@ export function BuscadorContrato({
                                     evento.target.value,
                                 )
                             }
+                            required
                             maxLength={40}
                             autoComplete="off"
                             autoCapitalize="characters"
@@ -105,7 +106,7 @@ export function BuscadorContrato({
                         <Button
                             type="submit"
                             variant="outline"
-                            className="h-11"
+                            className="h-11 cursor-pointer"
                             disabled={ocupado}
                         >
                             {formulario.processing ? (

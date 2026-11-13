@@ -8,33 +8,18 @@ use Illuminate\Database\Eloquent\Model;
  * Tabla ICTC.LAB_LABORATORIOS_SEDES: las sedes donde se toma la muestra.
  *
  * El nombre comercial del laboratorio no está aquí sino en CXP_PROVEEDORES
- * (el laboratorio es un proveedor), por eso los dos métodos hacen ese join.
+ * (el laboratorio es un proveedor).
  *
- * Mientras no exista el inicio de sesión por empresa, el laboratorio y la
- * sede se eligen a mano en la pantalla y viven en la sesión.
+ * El laboratorio inicia sesión en el mostrador con su RUC (UsuarioLaboratorio)
+ * y elige la sede en la pantalla; la sede elegida vive en la sesión.
  */
 class Sede extends Model
 {
     protected $table = 'lab_laboratorios_sedes';
+
     public $timestamps = false;
 
     public const ESTADO_ACTIVA = 'A';
-
-    /** Los laboratorios que tienen al menos una sede activa: RUC y nombre. */
-    public static function laboratorios()
-    {
-        return static::query()
-            ->from('lab_laboratorios_sedes as l')
-            ->join('cxp_proveedores as p', function ($join) {
-                $join->on('p.no_cia', '=', 'l.no_cia')
-                    ->on('p.identificacion', '=', 'l.identificacion');
-            })
-            ->select('l.identificacion', 'p.alias')
-            ->where('l.estado', self::ESTADO_ACTIVA)
-            ->distinct()
-            ->orderBy('p.alias')
-            ->get();
-    }
 
     /** Las sedes activas de un laboratorio. */
     public static function deLaboratorio(string $laboratorio)

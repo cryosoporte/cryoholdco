@@ -22,20 +22,16 @@ class LaboratorioController extends Controller
         [$laboratorio, $sede] = $sedeActiva->actual();
 
         return Inertia::render('laboratorio', [
-            'laboratorios' => Sede::laboratorios()->map(fn (object $fila): array => [
-                'codigo' => $fila->identificacion,
-                'nombre' => $fila->alias,
-            ])->all(),
-            'sedes' => $laboratorio === null ? [] : Sede::deLaboratorio($laboratorio)
+            'sedes' => Sede::deLaboratorio($laboratorio)
                 ->map(fn (Sede $fila): array => [
                     'codigo' => $fila->codigo_sede,
                     'nombre' => $fila->descripcion_sede,
                 ])->all(),
             'laboratorio' => $laboratorio,
+            'nombre_laboratorio' => Sede::alias($laboratorio),
             'sede' => $sede,
-            'nombre_sede' => $laboratorio !== null && $sede !== null
-                ? Sede::nombre($laboratorio, $sede) : null,
-            'hoy' => $laboratorio !== null && $sede !== null
+            'nombre_sede' => $sede !== null ? Sede::nombre($laboratorio, $sede) : null,
+            'hoy' => $sede !== null
                 ? Toma::tomadasHoy($laboratorio, $sede)->map(fn (Toma $fila): array => [
                     'numero_contrato' => $fila->numero_contrato_base,
                     'numero_toma' => (int) $fila->numero_toma,
@@ -75,9 +71,9 @@ class LaboratorioController extends Controller
         $datos = $request->validated();
         [$laboratorio, $sede] = $sedeActiva->actual();
 
-        if ($laboratorio === null || $sede === null) {
+        if ($sede === null) {
             return to_route('laboratorio.index')->withErrors([
-                'sede' => 'Selecciona un laboratorio y una sede activa antes de registrar la muestra.',
+                'sede' => 'Selecciona una sede activa antes de registrar la muestra.',
             ]);
         }
 
@@ -113,9 +109,9 @@ class LaboratorioController extends Controller
     {
         $datos = $request->validated();
 
-        if (! $sedeActiva->elegir($datos['laboratorio'], $datos['sede'] ?? null)) {
+        if (! $sedeActiva->elegir($datos['sede'])) {
             return to_route('laboratorio.index')->withErrors([
-                'laboratorio' => 'Ese laboratorio no tiene sedes activas.',
+                'sede' => 'Esa sede no está activa para tu laboratorio.',
             ]);
         }
 

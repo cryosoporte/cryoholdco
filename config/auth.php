@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Models\UsuarioLaboratorio;
 
 return [
 
@@ -42,6 +43,11 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        'laboratorio' => [
+            'driver' => 'session',
+            'provider' => 'laboratorios',
+        ],
     ],
 
     /*
@@ -65,6 +71,11 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', User::class),
+        ],
+
+        'laboratorios' => [
+            'driver' => 'eloquent',
+            'model' => UsuarioLaboratorio::class,
         ],
 
         // 'users' => [

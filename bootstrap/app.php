@@ -16,6 +16,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             HandleInertiaRequests::class,
         ]);
+
+        // El mostrador de laboratorio tiene su propio inicio de sesión, separado del panel interno.
+        $middleware->redirectGuestsTo(fn (Request $request): string => $request->routeIs('laboratorio.*')
+            ? route('laboratorio.login')
+            : route('login'));
+        $middleware->redirectUsersTo(fn (Request $request): string => $request->routeIs('laboratorio.*')
+            ? route('laboratorio.index')
+            : route('home'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

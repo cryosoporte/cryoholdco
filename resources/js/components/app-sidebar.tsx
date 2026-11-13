@@ -1,9 +1,14 @@
 import type { ComponentProps } from "react";
 import { Link, usePage } from "@inertiajs/react";
 import { route } from "ziggy-js";
-import { LayoutDashboardIcon, SettingsIcon } from "lucide-react";
+import {
+    LayoutDashboardIcon,
+    SettingsIcon,
+    ShieldCheckIcon,
+} from "lucide-react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
+import { modulosAdministracion } from "@/components/administracion/modulos";
 import { modulosOperaciones } from "@/components/operaciones/modulos";
 import {
     Sidebar,
@@ -24,6 +29,17 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
             url: route("operaciones"),
             icon: <SettingsIcon />,
             items: modulosOperaciones
+                .filter((modulo) => modulo.enMenuLateral)
+                .map((modulo) => ({
+                    title: modulo.titulo,
+                    url: route(modulo.ruta),
+                })),
+        },
+        {
+            title: "Administración",
+            url: route("administracion"),
+            icon: <ShieldCheckIcon />,
+            items: modulosAdministracion
                 .filter((modulo) => modulo.enMenuLateral)
                 .map((modulo) => ({
                     title: modulo.titulo,

@@ -22,9 +22,10 @@ export type TomaDelDia = {
 };
 
 export type LaboratorioProps = {
-    laboratorios: OpcionLaboratorio[];
     sedes: OpcionLaboratorio[];
-    laboratorio: string | null;
+    /** RUC del laboratorio que inició sesión. */
+    laboratorio: string;
+    nombre_laboratorio: string | null;
     sede: string | null;
     nombre_sede: string | null;
     hoy: TomaDelDia[];

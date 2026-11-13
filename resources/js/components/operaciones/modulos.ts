@@ -43,8 +43,8 @@ export const modulosOperaciones: ModuloOperaciones[] = [
     {
         titulo: "Laboratorio",
         descripcion:
-            "Busca contratos, registra muestras y revisa las tomas del día.",
-        ruta: "laboratorio.index",
+            "Mostrador de los laboratorios: ingresan con su RUC para registrar muestras.",
+        ruta: "laboratorio.login",
         icono: FlaskConicalIcon,
         nuevaPestana: true,
         enMenuLateral: false,

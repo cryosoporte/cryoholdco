@@ -1,4 +1,4 @@
-import { Label } from "@/components/ui/label";
+import { Field, FieldLabel } from "@/components/ui/field";
 import {
     Select,
     SelectContent,
@@ -8,40 +8,41 @@ import {
 } from "@/components/ui/select";
 import type { OpcionLaboratorio } from "./tipos";
 
-function Selector({
-    id,
-    titulo,
-    opciones,
-    valor,
+/**
+ * La sede desde donde trabaja el mostrador, entre las sedes activas del laboratorio.
+ * Solo avisa cuando se elige una sede distinta de la actual.
+ */
+export function SelectorSede({
+    sedes,
+    sede,
     disabled,
-    onChange,
+    onCambiar,
 }: {
-    id: string;
-    titulo: string;
-    opciones: OpcionLaboratorio[];
-    valor: string | null;
+    sedes: OpcionLaboratorio[];
+    sede: string | null;
     disabled: boolean;
-    onChange: (codigo: string) => void;
+    onCambiar: (sede: string) => void;
 }) {
-    const items = opciones.map((opcion) => ({
+    const items = sedes.map((opcion) => ({
         value: opcion.codigo,
         label: opcion.nombre,
     }));
+
     return (
-        <div className="min-w-36 flex-1 space-y-2">
-            <Label htmlFor={id}>{titulo}</Label>
+        <Field className="w-full sm:w-64">
+            <FieldLabel htmlFor="sede">Sede</FieldLabel>
             <Select
                 items={items}
-                value={valor}
+                value={sede}
                 onValueChange={(codigo) => {
-                    if (codigo !== null) {
-                        onChange(codigo);
+                    if (codigo !== null && codigo !== sede) {
+                        onCambiar(codigo);
                     }
                 }}
-                disabled={disabled || opciones.length === 0}
+                disabled={disabled || sedes.length === 0}
             >
-                <SelectTrigger id={id} className="w-full">
-                    <SelectValue placeholder={`Sin ${titulo.toLowerCase()}`} />
+                <SelectTrigger id="sede" className="w-full">
+                    <SelectValue placeholder="Sin sede" />
                 </SelectTrigger>
                 <SelectContent>
                     {items.map((opcion) => (
@@ -51,47 +52,6 @@ function Selector({
                     ))}
                 </SelectContent>
             </Select>
-        </div>
-    );
-}
-
-export function SelectorSede({
-    laboratorios,
-    sedes,
-    laboratorio,
-    sede,
-    disabled,
-    onCambiar,
-}: {
-    laboratorios: OpcionLaboratorio[];
-    sedes: OpcionLaboratorio[];
-    laboratorio: string | null;
-    sede: string | null;
-    disabled: boolean;
-    onCambiar: (laboratorio: string, sede: string | null) => void;
-}) {
-    return (
-        <div className="flex w-full flex-wrap gap-3 sm:w-auto sm:min-w-80">
-            <Selector
-                id="laboratorio"
-                titulo="Laboratorio"
-                opciones={laboratorios}
-                valor={laboratorio}
-                disabled={disabled}
-                onChange={(codigo) => onCambiar(codigo, null)}
-            />
-            <Selector
-                id="sede"
-                titulo="Sede"
-                opciones={sedes}
-                valor={sede}
-                disabled={disabled}
-                onChange={(codigo) => {
-                    if (laboratorio !== null) {
-                        onCambiar(laboratorio, codigo);
-                    }
-                }}
-            />
-        </div>
+        </Field>
     );
 }

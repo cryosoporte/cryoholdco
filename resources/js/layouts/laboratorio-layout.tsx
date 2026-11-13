@@ -6,7 +6,7 @@ export default function LaboratorioLayout({
     actions,
 }: {
     children: ReactNode;
-    actions: ReactNode;
+    actions?: ReactNode;
 }) {
     return (
         <PublicLayout

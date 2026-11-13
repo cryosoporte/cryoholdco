@@ -20,8 +20,20 @@ class CambiarSedeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'laboratorio' => ['required', 'string', 'max:15'],
-            'sede' => ['nullable', 'string', 'max:2'],
+            'sede' => ['required', 'string', 'max:2'],
+        ];
+    }
+
+    /**
+     * Get the validation messages shown when changing the active site.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'sede.required' => 'Elige una sede.',
+            'sede.max' => 'Esa sede no está activa para tu laboratorio.',
         ];
     }
 }

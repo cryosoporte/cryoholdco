@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Serologia\AlcanceSerologia;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
@@ -42,21 +43,27 @@ class Toma extends Model
         return $this->estado() === 'pendiente';
     }
 
+    /**
+     * Registra la toma si sigue pendiente. La fecha se guarda en hora de Lima, igual que
+     * SYSDATE en Oracle, porque la aplicación trabaja en UTC.
+     */
     public function marcarTomada(string $laboratorio, string $sede): bool
     {
+        $ahora = now(AlcanceSerologia::ZONA_HORARIA);
+
         $filas = DB::table($this->table)
             ->where('no_cia', $this->no_cia)
             ->where('numero_contrato_base', $this->numero_contrato_base)
             ->where('numero_toma', $this->numero_toma)
             ->whereNull('fecha_toma')
             ->update([
-                'fecha_toma' => now(),
+                'fecha_toma' => $ahora->format('Y-m-d H:i:s'),
                 'laboratorio_toma' => $laboratorio,
                 'sede_toma' => $sede,
             ]);
 
         if ($filas === 1) {
-            $this->fecha_toma = now();
+            $this->fecha_toma = $ahora->format('Y-m-d H:i:s');
             $this->laboratorio_toma = $laboratorio;
             $this->sede_toma = $sede;
         }

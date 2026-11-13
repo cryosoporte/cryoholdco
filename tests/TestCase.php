@@ -53,6 +53,13 @@ abstract class TestCase extends BaseTestCase
             $table->string('ciudad');
             $table->string('estado');
         });
+        Schema::create('lab_laboratorios_usuarios', function (Blueprint $table): void {
+            $table->id();
+            $table->string('identificacion', 15)->unique();
+            $table->string('password');
+            $table->string('estado', 1);
+            $table->timestamps();
+        });
         Schema::create('cxp_proveedores', function (Blueprint $table): void {
             $table->string('no_cia');
             $table->string('identificacion');
@@ -95,6 +102,19 @@ abstract class TestCase extends BaseTestCase
             $table->string('empresa');
             $table->string('identificacion');
             $table->string('nombres');
+        });
+    }
+
+    /**
+     * SQLite no tiene TRUNC ni SYSDATE, que usa la lista «Tomas del día» del mostrador.
+     * Se registra TRUNC y se simula SYSDATE como una columna de las tomas con la fecha indicada.
+     */
+    protected function simularSysdateOracle(string $hoy): void
+    {
+        DB::connection()->getPdo()->sqliteCreateFunction('TRUNC', fn (?string $fecha): ?string => $fecha === null ? null : substr($fecha, 0, 10), 1);
+
+        Schema::table('ope_tomas_serologicas', function (Blueprint $table) use ($hoy): void {
+            $table->dateTime('sysdate')->default($hoy);
         });
     }
 

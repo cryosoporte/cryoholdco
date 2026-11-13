@@ -9,12 +9,12 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-import { modulosOperaciones } from "@/components/operaciones/modulos";
+import type { ModuloOperaciones } from "@/components/operaciones/modulos";
 
-export function AccesosModulos() {
+export function AccesosModulos({ modulos }: { modulos: ModuloOperaciones[] }) {
     return (
         <div className="grid gap-4 md:grid-cols-3">
-            {modulosOperaciones.map(
+            {modulos.map(
                 ({ titulo, descripcion, ruta, icono: Icono, nuevaPestana }) => (
                     <Card
                         key={ruta}

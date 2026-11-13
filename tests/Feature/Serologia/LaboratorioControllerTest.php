@@ -2,6 +2,9 @@
 
 namespace Tests\Feature\Serologia;
 
+use App\Models\UsuarioLaboratorio;
+use Carbon\CarbonImmutable;
+use Database\Factories\UserFactory;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -9,17 +12,85 @@ use Tests\TestCase;
 
 class LaboratorioControllerTest extends TestCase
 {
+    private UsuarioLaboratorio $acceso;
+
+    /**
+     * Cada prueba trabaja con el laboratorio 20330025213, su sede 01 y su sesión iniciada.
+     */
     protected function setUp(): void
     {
         parent::setUp();
         $this->prepararSerologia();
+        $this->crearSedePrueba('20330025213', '01');
+        $this->acceso = UsuarioLaboratorio::factory()->create(['identificacion' => '20330025213']);
+        $this->actingAs($this->acceso, 'laboratorio');
     }
 
-    public function test_abre_el_mostrador_sin_fallar_cuando_no_hay_sedes(): void
+    public function test_abre_el_mostrador_con_las_sedes_y_tomas_del_laboratorio_que_inicio_sesion(): void
     {
+        $this->crearSedePrueba('20396499691', '05');
+        $this->crearContratoPrueba();
+        $this->simularSysdateOracle('2026-11-10 08:00:00');
+        DB::table('ope_tomas_serologicas')->update([
+            'fecha_toma' => '2026-11-10 09:15:00', 'laboratorio_toma' => '20330025213', 'sede_toma' => '01',
+        ]);
+
         $this->get(route('laboratorio.index'))->assertOk()->assertInertia(fn (Assert $page): Assert => $page
-            ->component('laboratorio')->where('laboratorio', null)->where('sede', null)
-            ->where('hoy', [])->where('resultado', null));
+            ->component('laboratorio')
+            ->where('laboratorio', '20330025213')
+            ->where('nombre_laboratorio', 'Laboratorio de prueba')
+            ->where('sedes', [['codigo' => '01', 'nombre' => 'Sede 01']])
+            ->where('sede', '01')
+            ->where('nombre_sede', 'Sede 01')
+            ->missing('laboratorios')
+            ->where('hoy', [[
+                'numero_contrato' => 'PE-CR-2026-000001-0', 'numero_toma' => 1,
+                'nombre' => 'Ana Ejemplo', 'hora' => '09:15',
+            ]])
+            ->where('resultado', null));
+    }
+
+    public function test_sin_sesion_el_mostrador_lleva_al_login_del_laboratorio(): void
+    {
+        $this->app['auth']->forgetGuards();
+
+        $this->get(route('laboratorio.index'))->assertRedirectToRoute('laboratorio.login');
+        $this->post(route('laboratorio.consultar'), ['codigo' => '12345678'])->assertRedirectToRoute('laboratorio.login');
+        $this->post(route('laboratorio.marcar'), ['codigo' => '12345678', 'numero_toma' => 1])->assertRedirectToRoute('laboratorio.login');
+        $this->post(route('laboratorio.sede'), ['sede' => '01'])->assertRedirectToRoute('laboratorio.login');
+    }
+
+    public function test_un_usuario_interno_no_entra_al_mostrador(): void
+    {
+        $this->app['auth']->forgetGuards();
+
+        $this->actingAs(UserFactory::new()->make(['id' => 1, 'empresa' => '001']), 'web')
+            ->get(route('laboratorio.index'))
+            ->assertRedirectToRoute('laboratorio.login');
+    }
+
+    public function test_saca_al_laboratorio_si_desactivan_su_acceso(): void
+    {
+        $this->acceso->update(['estado' => UsuarioLaboratorio::ESTADO_INACTIVO]);
+
+        $this->get(route('laboratorio.index'))
+            ->assertRedirectToRoute('laboratorio.login')
+            ->assertSessionHasErrors(['ruc' => 'Tu acceso no está habilitado. Comunícate con Criocord.']);
+
+        $this->assertGuest('laboratorio');
+    }
+
+    public function test_no_registra_la_toma_si_el_laboratorio_se_quedo_sin_sedes_activas(): void
+    {
+        $this->crearContratoPrueba();
+        DB::table('lab_laboratorios_sedes')->update(['estado' => 'I']);
+
+        $this->post(route('laboratorio.marcar'), ['codigo' => '12345678', 'numero_toma' => 1])
+            ->assertRedirectToRoute('laboratorio.login')
+            ->assertSessionHasErrors(['ruc' => 'Tu acceso no está habilitado. Comunícate con Criocord.']);
+
+        $this->assertGuest('laboratorio');
+        $this->assertDatabaseHas('ope_tomas_serologicas', ['numero_toma' => 1, 'fecha_toma' => null]);
     }
 
     public function test_rechaza_la_busqueda_sin_codigo(): void
@@ -79,54 +150,48 @@ class LaboratorioControllerTest extends TestCase
             ]);
     }
 
-    public function test_cambiar_de_laboratorio_selecciona_una_sede_valida_y_limpia_la_consulta(): void
+    public function test_cambia_a_otra_sede_del_laboratorio_y_limpia_la_consulta(): void
     {
-        $this->crearSedePrueba('99999999999', '02');
+        $this->crearSedePrueba('20330025213', '02');
+
         $this->withSession(['consulta_laboratorio' => ['nombre' => 'Consulta anterior']])
-            ->post(route('laboratorio.sede'), ['laboratorio' => '99999999999', 'sede' => '99'])
+            ->post(route('laboratorio.sede'), ['sede' => '02'])
             ->assertRedirectToRoute('laboratorio.index')
-            ->assertSessionHas('laboratorio.ruc', '99999999999')
+            ->assertSessionHasNoErrors()
             ->assertSessionHas('laboratorio.sede', '02')
             ->assertSessionMissing('consulta_laboratorio');
     }
 
-    public function test_no_cambia_la_sesion_si_el_laboratorio_no_tiene_sedes(): void
+    public function test_no_cambia_a_una_sede_de_otro_laboratorio(): void
     {
-        $this->withSession(['laboratorio.ruc' => '20330025213', 'laboratorio.sede' => '01'])
-            ->post(route('laboratorio.sede'), ['laboratorio' => 'INEXISTENTE'])
-            ->assertSessionHasErrors(['laboratorio' => 'Ese laboratorio no tiene sedes activas.'])
-            ->assertSessionHas('laboratorio.ruc', '20330025213')
+        $this->crearSedePrueba('20396499691', '05');
+
+        $this->withSession(['laboratorio.sede' => '01'])
+            ->post(route('laboratorio.sede'), ['sede' => '05'])
+            ->assertRedirectToRoute('laboratorio.index')
+            ->assertSessionHasErrors(['sede' => 'Esa sede no está activa para tu laboratorio.'])
             ->assertSessionHas('laboratorio.sede', '01');
     }
 
-    public function test_no_registra_la_toma_si_no_hay_sede(): void
+    public function test_registra_la_toma_con_el_laboratorio_que_inicio_sesion(): void
     {
         $this->crearContratoPrueba();
-        $this->post(route('laboratorio.marcar'), ['codigo' => '12345678', 'numero_toma' => 1])
-            ->assertSessionHasErrors(['sede' => 'Selecciona un laboratorio y una sede activa antes de registrar la muestra.']);
-        $this->assertDatabaseHas('ope_tomas_serologicas', ['fecha_toma' => null]);
-    }
+        $this->crearSedePrueba('20396499691', '01');
 
-    public function test_usa_otro_laboratorio_si_el_elegido_no_tiene_sedes_activas(): void
-    {
-        $this->crearContratoPrueba();
-        $this->crearSedePrueba('99999999999', '02');
-
-        $this->withSession(['laboratorio.ruc' => '20330025213'])
+        $this->withSession(['laboratorio' => ['ruc' => '20396499691', 'sede' => '01']])
             ->post(route('laboratorio.marcar'), ['codigo' => '12345678', 'numero_toma' => 1])
             ->assertSessionHasNoErrors();
         $this->assertDatabaseHas('ope_tomas_serologicas', [
-            'numero_toma' => 1, 'laboratorio_toma' => '99999999999', 'sede_toma' => '02',
+            'numero_toma' => 1, 'laboratorio_toma' => '20330025213', 'sede_toma' => '01',
         ]);
     }
 
     public function test_usa_la_primera_sede_si_la_guardada_no_esta_activa(): void
     {
         $this->crearContratoPrueba();
-        $this->crearSedePrueba(sede: '01');
         $this->crearSedePrueba(sede: '02');
 
-        $this->withSession(['laboratorio.ruc' => '20330025213', 'laboratorio.sede' => '07'])
+        $this->withSession(['laboratorio.sede' => '07'])
             ->post(route('laboratorio.marcar'), ['codigo' => '12345678', 'numero_toma' => 1])
             ->assertSessionHasNoErrors();
         $this->assertDatabaseHas('ope_tomas_serologicas', [
@@ -137,19 +202,19 @@ class LaboratorioControllerTest extends TestCase
     public function test_registra_la_muestra_y_no_sobrescribe_una_toma_repetida(): void
     {
         $this->crearContratoPrueba();
-        $this->crearSedePrueba();
-        $this->travelTo('2026-11-10 10:30:00');
+        $this->travelTo(new CarbonImmutable('2026-11-10 10:30:00', 'America/Lima'));
 
         $this->post(route('laboratorio.marcar'), ['codigo' => '12345678', 'numero_toma' => 1])
             ->assertRedirectToRoute('laboratorio.index')->assertSessionHasNoErrors()
             ->assertSessionHas('consulta_laboratorio.estado', 'tomada')
+            ->assertSessionHas('consulta_laboratorio.hora_toma', '10:30')
             ->assertSessionHas('consulta_laboratorio.recien_marcada', true);
         $this->assertDatabaseHas('ope_tomas_serologicas', [
             'numero_contrato_base' => 'PE-CR-2026-000001-0', 'fecha_toma' => '2026-11-10 10:30:00',
             'laboratorio_toma' => '20330025213', 'sede_toma' => '01',
         ]);
 
-        $this->travelTo('2026-11-10 11:00:00');
+        $this->travelTo(new CarbonImmutable('2026-11-10 11:00:00', 'America/Lima'));
         $this->post(route('laboratorio.marcar'), ['codigo' => '12345678', 'numero_toma' => 1])
             ->assertSessionHas('consulta_laboratorio.estado', 'tomada')
             ->assertSessionHas('consulta_laboratorio.hora_toma', '10:30')
@@ -157,10 +222,21 @@ class LaboratorioControllerTest extends TestCase
         $this->assertDatabaseHas('ope_tomas_serologicas', ['fecha_toma' => '2026-11-10 10:30:00']);
     }
 
+    public function test_guarda_la_toma_de_la_noche_con_la_fecha_y_hora_de_lima(): void
+    {
+        $this->crearContratoPrueba();
+        $this->travelTo(new CarbonImmutable('2026-11-11 02:15:00', 'UTC'));
+
+        $this->post(route('laboratorio.marcar'), ['codigo' => '12345678', 'numero_toma' => 1])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('consulta_laboratorio.fecha_toma', '2026-11-10')
+            ->assertSessionHas('consulta_laboratorio.hora_toma', '21:15');
+        $this->assertDatabaseHas('ope_tomas_serologicas', ['numero_toma' => 1, 'fecha_toma' => '2026-11-10 21:15:00']);
+    }
+
     public function test_repetir_el_registro_no_marca_la_siguiente_toma_pendiente(): void
     {
         $this->crearContratoPrueba();
-        $this->crearSedePrueba();
         DB::table('ope_tomas_serologicas')->insert([
             'no_cia' => '001', 'numero_contrato_base' => 'PE-CR-2026-000001-0', 'numero_toma' => 2,
         ]);
@@ -192,19 +268,18 @@ class LaboratorioControllerTest extends TestCase
             ->assertSessionHasErrors('codigo');
     }
 
-    public function test_no_cambia_la_sede_sin_indicar_el_laboratorio(): void
+    public function test_no_cambia_la_sede_sin_indicarla(): void
     {
-        $this->withSession(['laboratorio.ruc' => '20330025213', 'laboratorio.sede' => '01'])
-            ->from(route('laboratorio.index'))->post(route('laboratorio.sede'), ['sede' => '01'])
+        $this->withSession(['laboratorio.sede' => '01'])
+            ->from(route('laboratorio.index'))->post(route('laboratorio.sede'), [])
             ->assertRedirectToRoute('laboratorio.index')
-            ->assertSessionHasErrors('laboratorio')
-            ->assertSessionHas('laboratorio.ruc', '20330025213');
+            ->assertSessionHasErrors(['sede' => 'Elige una sede.'])
+            ->assertSessionHas('laboratorio.sede', '01');
     }
 
     public function test_no_registra_una_toma_que_no_pertenece_al_contrato(): void
     {
         $this->crearContratoPrueba();
-        $this->crearSedePrueba();
 
         $this->post(route('laboratorio.marcar'), ['codigo' => '12345678', 'numero_toma' => 99])
             ->assertSessionHasErrors(['codigo' => 'No encontramos esa toma. Vuelve a escanear.']);
