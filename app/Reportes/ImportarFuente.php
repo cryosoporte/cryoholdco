@@ -2,11 +2,13 @@
 
 namespace App\Reportes;
 
+use App\Models\FuenteCarga;
 use App\Models\FuenteDatos;
 use App\Reportes\Fuentes\ColumnaFuente;
 use App\Reportes\Fuentes\Fuente;
 use Generator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
@@ -36,11 +38,15 @@ class ImportarFuente
      *
      * @throws ValidationException si el archivo no se puede leer, le faltan columnas, no tiene filas o alguna fila es inválida
      */
-    public function importar(Fuente $fuente, string $ruta, string $usuario, string $archivo): int
+    public function importar(Fuente $fuente, string $ruta, string $usuario, string $archivo, ?FuenteCarga $carga = null): int
     {
+        $inicio = hrtime(true);
         $filas = $this->validar($fuente, $ruta);
+        $inicioReemplazo = hrtime(true);
 
-        DB::transaction(function () use ($fuente, $ruta, $usuario, $archivo, $filas): void {
+        DB::transaction(function () use ($fuente, $ruta, $usuario, $archivo, $filas, $carga): void {
+            FuenteDatos::query()->whereKey($fuente->codigo())->lockForUpdate()->get(['codigo']);
+
             DB::table($fuente->tabla())->delete();
 
             $bloque = [];
@@ -60,7 +66,17 @@ class ImportarFuente
             }
 
             FuenteDatos::registrarCarga($fuente->codigo(), $usuario, $filas, $archivo);
+            $carga?->completar($filas);
         });
+
+        Log::info('Importación de fuente completada', [
+            'fuente' => $fuente->codigo(),
+            'filas' => $filas,
+            'filas_por_bloque' => config('reportes.filas_por_bloque'),
+            'validacion_ms' => round(($inicioReemplazo - $inicio) / 1e6),
+            'reemplazo_ms' => round((hrtime(true) - $inicioReemplazo) / 1e6),
+            'memoria_maxima_mib' => round(memory_get_peak_usage(true) / 1048576, 1),
+        ]);
 
         return $filas;
     }
@@ -77,18 +93,23 @@ class ImportarFuente
     {
         $filas = 0;
         $errores = [];
+        $totalErrores = 0;
 
         foreach ($this->lector->leer($ruta, $this->encabezados($fuente)) as $numeroFila => $fila) {
             try {
                 $this->convertirFila($fuente, $fila);
                 $filas++;
             } catch (InvalidArgumentException $error) {
-                $errores[] = "Fila {$numeroFila}: {$error->getMessage()}";
+                $totalErrores++;
+
+                if (count($errores) < self::MAXIMO_ERRORES) {
+                    $errores[] = "Fila {$numeroFila}: {$error->getMessage()}";
+                }
             }
         }
 
         if ($errores !== []) {
-            throw ValidationException::withMessages(['archivo' => $this->resumirErrores($errores)]);
+            throw ValidationException::withMessages(['archivo' => $this->resumirErrores($errores, $totalErrores)]);
         }
 
         if ($filas === 0) {
@@ -142,12 +163,11 @@ class ImportarFuente
     /**
      * @param  list<string>  $errores
      */
-    private function resumirErrores(array $errores): string
+    private function resumirErrores(array $errores, int $totalErrores): string
     {
-        $mostrados = array_slice($errores, 0, self::MAXIMO_ERRORES);
-        $restantes = count($errores) - count($mostrados);
+        $restantes = $totalErrores - count($errores);
 
-        return 'No se guardó ninguna fila. '.implode(' ', $mostrados)
+        return 'No se guardó ninguna fila. '.implode(' ', $errores)
             .($restantes > 0 ? " Hay {$restantes} errores más." : '');
     }
 }

@@ -3,30 +3,25 @@
 namespace App\Http\Controllers\Reportes;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Reportes\CargarDataTestRequest;
-use App\Reportes\ImportarPruebaComisiones;
-use App\Reportes\LectorCsvNetsuite;
-use Illuminate\Http\RedirectResponse;
+use App\Models\FuenteDatos;
+use App\Reportes\Fuentes\FuenteFacturasOracle;
+use Illuminate\Support\Arr;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ComisionesController extends Controller
 {
+    private const FUENTE = FuenteFacturasOracle::CODIGO;
+
     public function index(): Response
     {
-        return Inertia::render('comisiones');
-    }
+        $fuente = FuenteDatos::porCodigo(self::FUENTE);
 
-    public function cargar(CargarDataTestRequest $request, LectorCsvNetsuite $lector, ImportarPruebaComisiones $importador): RedirectResponse
-    {
-        $archivo = $request->file('archivo');
-        $guardadas = $importador->importar($lector->leer($archivo->getRealPath()));
-
-        Inertia::flash('carga', [
-            'archivo' => $archivo->getClientOriginalName(),
-            'filas' => $guardadas,
+        return Inertia::render('comisiones', [
+            'fuente' => $fuente === null ? null : Arr::only(
+                $fuente->datosActualizacion(),
+                ['codigo', 'nombre', 'fecha_actualizacion', 'actualizado_por'],
+            ),
         ]);
-
-        return to_route('reportes.comisiones');
     }
 }

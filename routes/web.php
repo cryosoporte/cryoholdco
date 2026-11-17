@@ -58,5 +58,4 @@ Route::middleware('auth')->group(function () {
         ->where('fuente', '[a-z_]+')
         ->name('reportes.fuentes.cargar');
     Route::get('/reportes/comisiones', [ComisionesController::class, 'index'])->name('reportes.comisiones');
-    Route::post('/reportes/comisiones/cargar', [ComisionesController::class, 'cargar'])->name('reportes.comisiones.cargar');
 });

@@ -73,6 +73,15 @@ return [
             'after_commit' => false,
         ],
 
+        'redis_reportes' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'reportes-fuentes',
+            'retry_after' => 960,
+            'block_for' => 5,
+            'after_commit' => false,
+        ],
+
         'deferred' => [
             'driver' => 'deferred',
         ],

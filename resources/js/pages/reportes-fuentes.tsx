@@ -1,6 +1,13 @@
+import { usePoll } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
 import { TarjetaFuente } from "@/components/reportes/tarjeta-fuente";
-import type { FuenteDatos } from "@/components/reportes/tipos";
+import { hayCargaActiva, type FuenteDatos } from "@/components/reportes/tipos";
+
+function ConsultarCargasActivas() {
+    usePoll(3000, { only: ["fuentes"] });
+
+    return null;
+}
 
 export default function ReportesFuentes({
     fuentes,
@@ -9,6 +16,7 @@ export default function ReportesFuentes({
 }) {
     return (
         <AppLayout title="Reportes - Fuentes de datos">
+            {fuentes.some(hayCargaActiva) && <ConsultarCargasActivas />}
             <div className="space-y-6">
                 <div>
                     <h1 className="text-2xl font-semibold">Fuentes de datos</h1>

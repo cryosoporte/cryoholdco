@@ -39,6 +39,7 @@ return [
     |
     */
 
-    'filas_por_bloque' => 100,
+    'filas_por_bloque' => (int) env('REPORTES_FILAS_POR_BLOQUE', 100),
+    'cargas_asincronas' => env('REPORTES_CARGAS_ASINCRONAS', false),
 
 ];

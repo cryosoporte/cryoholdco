@@ -3,6 +3,7 @@
 namespace Tests;
 
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Models\FuenteCarga;
 use App\Reportes\Fuentes\CatalogoFuentes;
 use App\Reportes\Fuentes\FuenteFacturasOracle;
 use App\Reportes\Fuentes\TipoColumna;
@@ -92,13 +93,21 @@ abstract class TestCase extends BaseTestCase
         }
     }
 
-    protected function prepararPruebaComisiones(): void
+    protected function prepararCargasFuentes(): void
     {
-        Schema::create('prueba_comisiones', function (Blueprint $table): void {
-            $table->unsignedBigInteger('id_interno')->primary();
-            $table->string('numero_documento', 20)->nullable();
-            $table->dateTime('fecha_emision')->nullable();
-            $table->decimal('importe', 14, 2)->nullable();
+        Schema::create((new FuenteCarga)->getTable(), function (Blueprint $table): void {
+            $table->id();
+            $table->string('codigo_fuente', 30);
+            $table->char('estado', 1);
+            $table->string('archivo', 255);
+            $table->string('ruta_archivo', 150)->nullable();
+            $table->unsignedInteger('filas')->nullable();
+            $table->string('mensaje', 4000)->nullable();
+            $table->string('cargado_por', 100);
+            $table->string('usuario_id', 100);
+            $table->dateTime('fecha_recepcion');
+            $table->dateTime('fecha_inicio')->nullable();
+            $table->dateTime('fecha_fin')->nullable();
         });
     }
 

@@ -18,7 +18,10 @@ export function formatearFecha(fecha: string | null): string {
  * Fecha y hora tal como las envía Laravel en ISO 8601 (2026-11-17T10:32:00-05:00),
  * sin convertir de zona: muestra la hora con la que se guardó.
  */
-export function formatearFechaHora(fecha: string | null): string {
+export function formatearFechaHora(
+    fecha: string | null,
+    separador = " ",
+): string {
     if (!fecha) {
         return "—";
     }
@@ -31,5 +34,5 @@ export function formatearFechaHora(fecha: string | null): string {
 
     const [, anio, mes, dia, hora, minutos] = partes;
 
-    return `${dia}-${mes}-${anio} ${hora}:${minutos}`;
+    return `${dia}-${mes}-${anio}${separador}${hora}:${minutos}`;
 }
