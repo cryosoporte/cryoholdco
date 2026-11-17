@@ -13,6 +13,8 @@ export type UsuarioCompartido = {
 declare module "@inertiajs/core" {
     export interface InertiaConfig {
         sharedPageProps: {
+            /** Base de URL para los archivos de public/. */
+            assetUrl: string;
             empresa: string | null;
             user: UsuarioCompartido | null;
         };
