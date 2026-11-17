@@ -3,17 +3,105 @@
 namespace Tests;
 
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Reportes\Fuentes\CatalogoFuentes;
+use App\Reportes\Fuentes\FuenteFacturasOracle;
+use App\Reportes\Fuentes\TipoColumna;
 use Carbon\CarbonImmutable;
+use DateTimeInterface;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
+use OpenSpout\Common\Entity\Cell;
+use OpenSpout\Common\Entity\Row;
+use OpenSpout\Common\Entity\Style\Style;
+use OpenSpout\Writer\XLSX\Writer;
 use PDO;
 
 abstract class TestCase extends BaseTestCase
 {
+    /**
+     * Escribe un .xlsx temporal con una fila por elemento de $filas (la primera
+     * suele ser la de encabezados) y devuelve su ruta. Las fechas se escriben
+     * con formato de fecha, como las guarda Excel. El archivo se borra al
+     * terminar la prueba.
+     *
+     * @param  list<list<bool|DateTimeInterface|float|int|string|null>>  $filas
+     */
+    protected function crearXlsx(array $filas): string
+    {
+        $ruta = tempnam(sys_get_temp_dir(), 'xlsx').'.xlsx';
+        $estiloFecha = (new Style)->withFormat('dd/mm/yyyy hh:mm');
+
+        $escritor = new Writer;
+        $escritor->openToFile($ruta);
+
+        foreach ($filas as $valores) {
+            $escritor->addRow(new Row(array_map(
+                fn (mixed $valor): Cell => Cell::fromValue($valor, $valor instanceof DateTimeInterface ? $estiloFecha : null),
+                $valores,
+            )));
+        }
+
+        $escritor->close();
+
+        $this->beforeApplicationDestroyed(function () use ($ruta): void {
+            @unlink($ruta);
+            @unlink(substr($ruta, 0, -5));
+        });
+
+        return $ruta;
+    }
+
+    /**
+     * Crea en SQLite la tabla maestra de fuentes (con la fila de Facturas
+     * Oracle) y la tabla de cada fuente del catálogo, armada desde su
+     * definición para que no se desalineen.
+     */
+    protected function prepararFuentes(): void
+    {
+        Schema::create('fuentes_datos', function (Blueprint $table): void {
+            $table->string('codigo', 30)->primary();
+            $table->string('nombre', 100);
+            $table->dateTime('fecha_actualizacion')->nullable();
+            $table->string('actualizado_por', 100)->nullable();
+            $table->unsignedInteger('filas')->nullable();
+            $table->string('archivo', 255)->nullable();
+        });
+
+        DB::table('fuentes_datos')->insert([
+            'codigo' => FuenteFacturasOracle::CODIGO,
+            'nombre' => 'Facturas Oracle NetSuite',
+        ]);
+
+        foreach ((new CatalogoFuentes)->todas() as $fuente) {
+            Schema::create($fuente->tabla(), function (Blueprint $table) use ($fuente): void {
+                foreach ($fuente->columnas() as $columna) {
+                    $definicion = match ($columna->tipo) {
+                        TipoColumna::Entero => $table->bigInteger($columna->columna),
+                        TipoColumna::Decimal => $table->decimal($columna->columna, $columna->precision, $columna->escala),
+                        TipoColumna::Texto => $table->string($columna->columna, $columna->longitud),
+                        TipoColumna::Fecha, TipoColumna::FechaHora => $table->dateTime($columna->columna),
+                    };
+
+                    $definicion->nullable(! $columna->obligatoria);
+                }
+            });
+        }
+    }
+
+    protected function prepararPruebaComisiones(): void
+    {
+        Schema::create('prueba_comisiones', function (Blueprint $table): void {
+            $table->unsignedBigInteger('id_interno')->primary();
+            $table->string('numero_documento', 20)->nullable();
+            $table->dateTime('fecha_emision')->nullable();
+            $table->decimal('importe', 14, 2)->nullable();
+        });
+    }
+
     protected function prepararSerologia(): void
     {
         $this->withoutVite();

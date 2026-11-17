@@ -10,6 +10,7 @@
         "inertiajs/inertia-laravel": "^3.0",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
+        "openspout/openspout": "^5.14",
         "tightenco/ziggy": "^2.6",
         "yajra/laravel-oci8": "^13.14"
     },

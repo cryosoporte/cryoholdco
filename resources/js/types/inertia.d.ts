@@ -16,5 +16,9 @@ declare module "@inertiajs/core" {
             empresa: string | null;
             user: UsuarioCompartido | null;
         };
+        flashDataType: {
+            carga?: { archivo: string; filas: number };
+            fuenteCargada?: { fuente: string; filas: number };
+        };
     }
 }

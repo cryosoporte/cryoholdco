@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import { Link, usePage } from "@inertiajs/react";
 import { route } from "ziggy-js";
 import {
+    ChartBarBig,
     LayoutDashboardIcon,
     SettingsIcon,
     ShieldCheckIcon,
@@ -45,6 +46,11 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
                     title: modulo.titulo,
                     url: route(modulo.ruta),
                 })),
+        },
+        {
+            title: "Reportes",
+            url: route("reportes"),
+            icon: <ChartBarBig />,
         },
     ];
 

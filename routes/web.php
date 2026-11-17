@@ -3,6 +3,8 @@
 use App\Http\Controllers\Administracion\AccesoLaboratorioController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LoginLaboratorioController;
+use App\Http\Controllers\Reportes\ComisionesController;
+use App\Http\Controllers\Reportes\FuenteController;
 use App\Http\Controllers\Serologia\ClienteController;
 use App\Http\Controllers\Serologia\LaboratorioController;
 use App\Http\Controllers\Serologia\SerologiaController;
@@ -48,4 +50,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/administracion/laboratorios', [AccesoLaboratorioController::class, 'index'])->name('administracion.laboratorios');
     Route::post('/administracion/laboratorios', [AccesoLaboratorioController::class, 'crear'])->name('administracion.laboratorios.crear');
     Route::put('/administracion/laboratorios/{acceso}', [AccesoLaboratorioController::class, 'actualizar'])->name('administracion.laboratorios.actualizar');
+
+    // reportes
+    Route::inertia('/reportes', 'reportes')->name('reportes');
+    Route::get('/reportes/fuentes', [FuenteController::class, 'index'])->name('reportes.fuentes');
+    Route::post('/reportes/fuentes/{fuente}/cargar', [FuenteController::class, 'cargar'])
+        ->where('fuente', '[a-z_]+')
+        ->name('reportes.fuentes.cargar');
+    Route::get('/reportes/comisiones', [ComisionesController::class, 'index'])->name('reportes.comisiones');
+    Route::post('/reportes/comisiones/cargar', [ComisionesController::class, 'cargar'])->name('reportes.comisiones.cargar');
 });

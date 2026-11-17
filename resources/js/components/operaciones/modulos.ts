@@ -5,20 +5,12 @@ import {
     type LucideIcon,
 } from "lucide-react";
 
-/**
- * Un módulo de Operaciones. Para agregar uno nuevo basta con sumarlo a
- * `modulosOperaciones`: aparece en la pantalla de Operaciones y, si es
- * interno, también en el menú lateral.
- */
 export type ModuloOperaciones = {
     titulo: string;
     descripcion: string;
-    /** Nombre de la ruta de Laravel (Ziggy). */
     ruta: string;
     icono: LucideIcon;
-    /** Las pantallas públicas (para clientes o laboratorios) se abren en otra pestaña. */
     nuevaPestana: boolean;
-    /** Si se muestra bajo "Operaciones" en el menú lateral. */
     enMenuLateral: boolean;
 };
 
