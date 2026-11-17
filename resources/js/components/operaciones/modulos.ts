@@ -40,5 +40,5 @@ export const modulosOperaciones: ModuloOperaciones[] = [
         icono: FlaskConicalIcon,
         nuevaPestana: true,
         enMenuLateral: false,
-    },
+    }, 
 ];

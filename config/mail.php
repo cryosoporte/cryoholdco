@@ -36,7 +36,24 @@ return [
     */
 
     'mailers' => [
-
+        'sac_peru' => [
+            'transport' => 'smtp',
+            'scheme' => env('MAIL_SERVICIO_CLIENTE_SCHEME', 'smtp'),
+            'host' => env('MAIL_SERVICIO_CLIENTE_HOST'),
+            'port' => env('MAIL_SERVICIO_CLIENTE_PORT', 587),
+            'username' => env('MAIL_SERVICIO_CLIENTE_USERNAME'),
+            'password' => env('MAIL_SERVICIO_CLIENTE_PASSWORD'),
+            'timeout' => null,
+        ],
+        'soporte_ti' => [
+            'transport' => 'smtp',
+            'scheme' => env('MAIL_SOPORTE_TI_SCHEME', 'smtp'),
+            'host' => env('MAIL_SOPORTE_TI_HOST'),
+            'port' => env('MAIL_SOPORTE_TI_PORT', 587),
+            'username' => env('MAIL_SOPORTE_TI_USERNAME'),
+            'password' => env('MAIL_SOPORTE_TI_PASSWORD'),
+            'timeout' => null,
+        ],
         'smtp' => [
             'transport' => 'smtp',
             'scheme' => env('MAIL_SCHEME'),

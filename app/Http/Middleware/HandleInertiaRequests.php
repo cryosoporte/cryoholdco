@@ -37,6 +37,7 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
+            'assetUrl' => rtrim(asset(''), '/'),
             'empresa' => $request->user()?->empresa,
             'user' => $request->user()?->only(['name', 'email']),
         ];

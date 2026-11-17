@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/sidebar";
 
 export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
-    const { empresa, user } = usePage().props;
+    const { assetUrl, empresa, user } = usePage().props;
     const enlaces = [
         { title: "Inicio", url: route("home"), icon: <LayoutDashboardIcon /> },
         {
@@ -66,8 +66,8 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
                             <img
                                 src={
                                     empresa === "001"
-                                        ? "/images/logos/criocord_logo.png"
-                                        : "/images/logos/lazo_de_vida_logo.png"
+                                        ? `${assetUrl}/images/logos/criocord_logo.png`
+                                        : `${assetUrl}/images/logos/lazo_de_vida_logo.png`
                                 }
                                 alt="Logo de la empresa"
                                 className="mx-auto w-full max-w-32"

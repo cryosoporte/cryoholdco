@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, usePage } from "@inertiajs/react";
 import { route } from "ziggy-js";
 
 export default function PublicLayout({
@@ -13,6 +13,8 @@ export default function PublicLayout({
     actions?: ReactNode;
     home?: string;
 }) {
+    const { assetUrl } = usePage().props;
+
     return (
         <div className="min-h-dvh bg-muted/30 text-foreground">
             <Head title={`${title} · Criocord`} />
@@ -23,7 +25,7 @@ export default function PublicLayout({
                         aria-label="Criocord, ir al inicio"
                     >
                         <img
-                            src="/images/logos/criocord_logo.png"
+                            src={`${assetUrl}/images/logos/criocord_logo.png`}
                             alt="Criocord"
                             className="h-7 w-auto sm:h-9"
                         />
