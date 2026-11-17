@@ -29,10 +29,10 @@
 
         <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px; background-color:#FFFFFF; border-radius:8px; overflow:hidden;">
 
-          <!-- Encabezado: reemplazar el texto por <img src="URL_LOGO" alt="CrioCord" width="160"> si tienen el logo alojado -->
+          <!-- Encabezado -->
           <tr>
             <td align="center" style="background-color:#1F3A5F; padding:24px;">
-                <img src="https://sistemas.criocord.com.pe/cryoholdco/public/images/logos/criocord_logo.png" alt="Logo Criocord" width="160">
+                <img src="{{ asset('images/logos/criocord_logo.png') }}" alt="Logo Criocord" width="160">
             </td>
           </tr>
 
@@ -43,7 +43,7 @@
               <p style="margin:0 0 16px 0;">Esperamos que se encuentren muy bien.</p>
               <p style="margin:0 0 16px 0;">
                 Te escribimos porque, al revisar el expediente de tu contrato
-                <strong>N.º {{ $nombre }}</strong>, notamos que todavía nos falta la
+                <strong>N.º {{ $numeroBase }}</strong>, notamos que todavía nos falta la
                 <strong>prueba serológica de enfermedades infecciosas</strong> de la mamá.
               </p>
               <p style="margin:0 0 24px 0;">
@@ -95,13 +95,13 @@
           <tr>
             <td align="center" class="px" style="padding:0 40px 16px 40px;">
               <!--[if mso]>
-              <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://sistemas.criocord.com.pe/cryoholdco/public/serologia/clientes" style="height:48px; v-text-anchor:middle; width:300px;" arcsize="12%" stroke="f" fillcolor="#1F3A5F">
+              <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{ $enlacePortal }}" style="height:48px; v-text-anchor:middle; width:300px;" arcsize="12%" stroke="f" fillcolor="#1F3A5F">
                 <w:anchorlock/>
                 <center style="color:#FFFFFF; font-family:Arial, Helvetica, sans-serif; font-size:16px; font-weight:bold;">Ver locales y horarios</center>
               </v:roundrect>
               <![endif]-->
               <!--[if !mso]><!-->
-              <a href="https://sistemas.criocord.com.pe/cryoholdco/public/serologia/clientes" target="_blank" style="display:inline-block; background-color:#1F3A5F; color:#FFFFFF; font-family:Arial, Helvetica, sans-serif; font-size:16px; font-weight:bold; line-height:48px; text-align:center; text-decoration:none; width:300px; border-radius:6px;">Ver locales y horarios</a>
+              <a href="{{ $enlacePortal }}" target="_blank" style="display:inline-block; background-color:#1F3A5F; color:#FFFFFF; font-family:Arial, Helvetica, sans-serif; font-size:16px; font-weight:bold; line-height:48px; text-align:center; text-decoration:none; width:300px; border-radius:6px;">Ver locales y horarios</a>
               <!--<![endif]-->
             </td>
           </tr>
@@ -110,7 +110,7 @@
           <tr>
             <td align="center" class="px" style="padding:0 40px 8px 40px; font-family:Arial, Helvetica, sans-serif; font-size:12px; line-height:18px; color:#7A8494;">
               Si el botón no funciona, copia este enlace en tu navegador:<br>
-              <a href="https://sistemas.criocord.com.pe/cryoholdco/public/serologia/clientes" target="_blank" style="color:#1F3A5F; text-decoration:underline; word-break:break-all;">https://sistemas.criocord.com.pe/cryoholdco/public/serologia/clientes</a>
+              <a href="{{ $enlacePortal }}" target="_blank" style="color:#1F3A5F; text-decoration:underline; word-break:break-all;">{{ $enlacePortal }}</a>
             </td>
           </tr>
 

@@ -5,6 +5,7 @@ namespace Tests\Feature\Serologia;
 use App\Mail\RecordatorioSerologia;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Mail\Mailer;
 use Illuminate\Mail\PendingMail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
@@ -14,6 +15,7 @@ use Illuminate\Testing\TestResponse;
 use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
+use Symfony\Component\Mime\Email;
 use Tests\TestCase;
 
 class RecordatorioSerologiaTest extends TestCase
@@ -22,7 +24,6 @@ class RecordatorioSerologiaTest extends TestCase
     {
         parent::setUp();
         $this->prepararSerologia();
-
         Schema::table('ven_clientes', function (Blueprint $table): void {
             $table->string('mail_contacto')->nullable();
         });
@@ -42,17 +43,42 @@ class RecordatorioSerologiaTest extends TestCase
         Mail::assertNothingSent();
     }
 
-    public function test_envia_al_correo_guardado_y_no_al_destinatario_del_navegador(): void
+    #[DataProvider('entornosDeEnvio')]
+    public function test_envia_al_correo_guardado_por_el_transporte_del_entorno(string $entorno, string $mailer, string $otroMailer, string $remitente): void
     {
+        $this->app->instance('env', $entorno);
+        config([
+            'mail.default' => 'smtp',
+            'mail.from' => ['address' => 'local@example.com', 'name' => 'Criocord local'],
+            'mail.mailers.smtp.transport' => 'array',
+            'mail.mailers.smtp.username' => 'usuario-sandbox',
+            'mail.mailers.sac_peru.transport' => 'array',
+            'mail.mailers.sac_peru.from.address' => 'sac@example.com',
+        ]);
         $this->crearClienteConCorreo(' ana@example.com ');
-        Mail::fake();
 
         $this->enviar(['correo' => 'otro@example.com', 'no_cia' => '999'])
             ->assertOk()->assertExactJson(['message' => 'Recordatorio enviado correctamente.']);
 
-        Mail::assertSent(RecordatorioSerologia::class, fn (RecordatorioSerologia $correo): bool => $correo->hasTo('ana@example.com') && $correo->nombre === 'Ana Ejemplo'
-        );
-        Mail::assertSentCount(1);
+        $mensajes = Mail::mailer($mailer)->getSymfonyTransport()->messages();
+        $this->assertCount(1, $mensajes);
+        $this->assertCount(0, Mail::mailer($otroMailer)->getSymfonyTransport()->messages());
+
+        $mensaje = $mensajes->sole()->getOriginalMessage();
+        $this->assertInstanceOf(Email::class, $mensaje);
+        $this->assertCount(1, $mensaje->getTo());
+        $this->assertSame('ana@example.com', $mensaje->getTo()[0]->getAddress());
+        $this->assertSame($remitente, $mensaje->getFrom()[0]->getAddress());
+        $this->assertStringContainsString($this->datosRecordatorio()['numero_base'], $mensaje->getHtmlBody());
+    }
+
+    /** @return array<string, array{string, string, string, string}> */
+    public static function entornosDeEnvio(): array
+    {
+        return [
+            'local' => ['local', 'smtp', 'sac_peru', 'local@example.com'],
+            'producción' => ['production', 'sac_peru', 'smtp', 'sac@example.com'],
+        ];
     }
 
     #[DataProvider('correosInvalidos')]
@@ -210,11 +236,14 @@ class RecordatorioSerologiaTest extends TestCase
 
     public function test_informa_el_fallo_del_proveedor_sin_confirmar_un_envio(): void
     {
+        $this->app->instance('env', 'production');
         $this->crearClienteConCorreo();
         $exception = new RuntimeException('Fallo de transporte');
         Exceptions::fake();
+        $mailer = Mockery::mock(Mailer::class);
         $pendiente = Mockery::mock(PendingMail::class);
-        Mail::shouldReceive('to')->once()->with('ana@example.com')->andReturn($pendiente);
+        Mail::shouldReceive('mailer')->once()->with('sac_peru')->andReturn($mailer);
+        $mailer->shouldReceive('to')->once()->with('ana@example.com')->andReturn($pendiente);
         $pendiente->shouldReceive('send')->once()->with(Mockery::type(RecordatorioSerologia::class))
             ->andThrow($exception);
 
@@ -225,19 +254,22 @@ class RecordatorioSerologiaTest extends TestCase
         Exceptions::assertReported(fn (RuntimeException $reportada): bool => $reportada === $exception);
     }
 
-    public function test_la_plantilla_incluye_el_nombre_y_enlace_al_portal(): void
+    public function test_el_correo_incluye_el_contrato_y_enlace_al_portal_en_html_y_texto(): void
     {
-        $correo = new RecordatorioSerologia('Ana Ejemplo');
+        $numeroBase = $this->datosRecordatorio()['numero_base'];
+        $correo = new RecordatorioSerologia($numeroBase);
+        $enlacePortal = route('clientes.index');
 
         $correo->assertHasSubject('Recordatorio de toma de muestra para serología');
-        $correo->assertSeeInHtml('Ana Ejemplo');
-        $correo->assertSeeInHtml('<a href="'.e(route('clientes.index')).'"', false);
-        $correo->assertSeeInHtml('Consultar mi serología');
+        $correo->assertSeeInHtml($numeroBase);
+        $correo->assertSeeInHtml('<a href="'.e($enlacePortal).'"', false);
+        $correo->assertSeeInHtml('Ver locales y horarios');
         $correo->assertDontSeeInHtml('<pre', false);
-        $correo->assertSeeInText('tienes pendiente tu toma de muestra para serología');
+        $correo->assertSeeInText($numeroBase);
+        $correo->assertSeeInText($enlacePortal);
     }
 
-    public function test_la_plantilla_escapa_el_html_del_nombre(): void
+    public function test_la_plantilla_escapa_el_html_del_numero_de_contrato(): void
     {
         $correo = new RecordatorioSerologia('<script>alert(1)</script>');
 
@@ -261,6 +293,8 @@ class RecordatorioSerologiaTest extends TestCase
     private function enviar(array $datos = []): TestResponse
     {
         return $this->actingAs(UserFactory::new()->make(['id' => 1, 'empresa' => '001']))
+            ->withSession(['_token' => 'token-de-prueba'])
+            ->withHeader('X-CSRF-TOKEN', 'token-de-prueba')
             ->postJson(route('serologia.recordatorio'), [...$this->datosRecordatorio(), ...$datos]);
     }
 }

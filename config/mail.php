@@ -43,6 +43,10 @@ return [
             'port' => env('MAIL_SERVICIO_CLIENTE_PORT', 587),
             'username' => env('MAIL_SERVICIO_CLIENTE_USERNAME'),
             'password' => env('MAIL_SERVICIO_CLIENTE_PASSWORD'),
+            'from' => [
+                'address' => env('MAIL_SERVICIO_CLIENTE_USERNAME'),
+                'name' => 'Servicio al Cliente',
+            ],
             'timeout' => null,
         ],
         'soporte_ti' => [
