@@ -20,7 +20,7 @@ class FuenteCargaSeeder extends Seeder
         FuenteCarga::factory()->create([
             'estado' => FuenteCarga::FALLIDA,
             'ruta_archivo' => null,
-            'fecha_fin' => now(),
+            'fecha_fin' => FuenteCarga::ahora(),
             'mensaje' => 'Faltan columnas en el archivo: Importe.',
         ]);
     }

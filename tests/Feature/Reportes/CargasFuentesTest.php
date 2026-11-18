@@ -7,6 +7,7 @@ use App\Models\FuenteCarga;
 use App\Reportes\Fuentes\ColumnaFuente;
 use App\Reportes\Fuentes\FuenteFacturasOracle;
 use App\Reportes\ImportarFuente;
+use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
 use Database\Seeders\FuenteCargaSeeder;
 use Illuminate\Http\UploadedFile;
@@ -68,6 +69,22 @@ class CargasFuentesTest extends TestCase
                 ->where('fuentes.0.ultima_carga.filas', 2));
     }
 
+    public function test_la_bitacora_guarda_las_fechas_en_hora_de_lima_como_la_maestra(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-11-17 15:32:00', 'UTC'));
+
+        $this->subir($this->archivoFacturas())->assertSessionHasNoErrors();
+        app()->call([Queue::pushed(ImportarFuenteJob::class)->first(), 'handle']);
+
+        $this->assertDatabaseHas('fuentes_cargas', [
+            'estado' => FuenteCarga::COMPLETADA,
+            'fecha_recepcion' => '2026-11-17 10:32:00',
+            'fecha_inicio' => '2026-11-17 10:32:00',
+            'fecha_fin' => '2026-11-17 10:32:00',
+        ]);
+        $this->assertDatabaseHas('fuentes_datos', ['fecha_actualizacion' => '2026-11-17 10:32:00']);
+    }
+
     public function test_un_archivo_invalido_mantiene_los_datos_y_la_fecha_anteriores(): void
     {
         DB::table('fuente_facturas_oracle')->insert(['id_interno' => 99]);
@@ -125,16 +142,33 @@ class CargasFuentesTest extends TestCase
         $this->assertDatabaseCount('fuente_facturas_oracle', 0);
     }
 
+    public function test_si_el_despacho_falla_despues_de_que_el_worker_empezo_la_carga_sigue_su_curso(): void
+    {
+        Bus::shouldReceive('dispatch')->once()->andReturnUsing(function (ImportarFuenteJob $job): never {
+            FuenteCarga::query()->findOrFail($job->cargaId)->iniciar();
+
+            throw new RuntimeException('Timeout de Redis después de encolar');
+        });
+
+        $this->subir($this->archivoFacturas())
+            ->assertRedirectToRoute('reportes.fuentes')
+            ->assertSessionHasNoErrors();
+
+        $carga = FuenteCarga::query()->sole();
+        $this->assertSame(FuenteCarga::EN_PROCESO, $carga->estado);
+        Storage::disk('local')->assertExists($carga->ruta_archivo);
+    }
+
     public function test_el_scheduler_recupera_cargas_vencidas_y_limpia_temporales_finalizados(): void
     {
-        $pendiente = FuenteCarga::factory()->create(['fecha_recepcion' => now()->subMinutes(31)]);
+        $pendiente = FuenteCarga::factory()->create(['fecha_recepcion' => FuenteCarga::ahora()->subMinutes(31)]);
         $interrumpida = FuenteCarga::factory()->create([
             'estado' => FuenteCarga::EN_PROCESO,
-            'fecha_inicio' => now()->subMinutes(18),
+            'fecha_inicio' => FuenteCarga::ahora()->subMinutes(18),
         ]);
         $vigente = FuenteCarga::factory()->create([
             'estado' => FuenteCarga::EN_PROCESO,
-            'fecha_inicio' => now()->subMinutes(3),
+            'fecha_inicio' => FuenteCarga::ahora()->subMinutes(3),
         ]);
         $completada = FuenteCarga::factory()->create(['estado' => FuenteCarga::COMPLETADA]);
 

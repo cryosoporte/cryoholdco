@@ -42,7 +42,7 @@ class RecuperarCargasFuentes extends Command
 
     private function vencerCargas(string $estado, string $columna, int $segundos, string $mensaje): void
     {
-        $limite = now()->subSeconds($segundos);
+        $limite = FuenteCarga::ahora()->subSeconds($segundos);
 
         foreach (FuenteCarga::query()->where('estado', $estado)->where($columna, '<=', $limite)->lazyById() as $carga) {
             $carga->fallar($estado, $mensaje);

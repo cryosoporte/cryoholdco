@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Database\Factories\FuenteCargaFactory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -44,6 +45,16 @@ class FuenteCarga extends Model
         return strtolower(config('reportes.prefijo_tablas').'fuentes_cargas');
     }
 
+    /**
+     * Hora actual de Lima. Las fechas de la bitácora se guardan en la misma
+     * zona que FECHA_ACTUALIZACION de la maestra y que SYSDATE de Oracle,
+     * aunque la aplicación trabaje en UTC.
+     */
+    public static function ahora(): CarbonImmutable
+    {
+        return CarbonImmutable::now(config('reportes.zona_horaria'));
+    }
+
     protected function casts(): array
     {
         return ['filas' => 'integer'];
@@ -80,7 +91,7 @@ class FuenteCarga extends Model
     {
         return static::query()->whereKey($this->id)->where('estado', self::PENDIENTE)->update([
             'estado' => self::EN_PROCESO,
-            'fecha_inicio' => now(),
+            'fecha_inicio' => self::ahora(),
         ]) === 1;
     }
 
@@ -89,7 +100,7 @@ class FuenteCarga extends Model
         $actualizadas = static::query()->whereKey($this->id)->where('estado', self::EN_PROCESO)->update([
             'estado' => self::COMPLETADA,
             'filas' => $filas,
-            'fecha_fin' => now(),
+            'fecha_fin' => self::ahora(),
         ]);
 
         if ($actualizadas !== 1) {
@@ -102,7 +113,7 @@ class FuenteCarga extends Model
         return static::query()->whereKey($this->id)->where('estado', $estadoAnterior)->update([
             'estado' => self::FALLIDA,
             'mensaje' => mb_substr($mensaje, 0, 1000),
-            'fecha_fin' => now(),
+            'fecha_fin' => self::ahora(),
         ]) === 1;
     }
 

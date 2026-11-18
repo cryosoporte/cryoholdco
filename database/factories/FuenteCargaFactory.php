@@ -26,7 +26,7 @@ class FuenteCargaFactory extends Factory
             'ruta_archivo' => 'fuentes/'.Str::uuid().'.xlsx',
             'cargado_por' => fake()->name(),
             'usuario_id' => '1',
-            'fecha_recepcion' => now(),
+            'fecha_recepcion' => FuenteCarga::ahora(),
         ];
     }
 }

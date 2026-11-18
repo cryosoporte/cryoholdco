@@ -37,7 +37,7 @@ class RecibirCargaFuente
                 'ruta_archivo' => $ruta,
                 'cargado_por' => mb_substr($usuario->name, 0, 100),
                 'usuario_id' => (string) $usuario->getAuthIdentifier(),
-                'fecha_recepcion' => now(),
+                'fecha_recepcion' => FuenteCarga::ahora(),
             ]);
         });
 
@@ -52,6 +52,10 @@ class RecibirCargaFuente
 
             $mensaje = 'No se pudo preparar la importación. Intenta nuevamente.';
 
+            // Si la carga ya no está pendiente, el job sí llegó a la cola y el
+            // worker la empezó aunque el despacho haya reportado un error (por
+            // ejemplo, un timeout de Redis después de encolar). En ese caso la
+            // importación sigue su curso y se responde como recibida.
             if ($carga->fallar(FuenteCarga::PENDIENTE, $mensaje)) {
                 $carga->eliminarTemporal();
 
