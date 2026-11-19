@@ -4,6 +4,7 @@ use App\Http\Controllers\Administracion\AccesoLaboratorioController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LoginLaboratorioController;
 use App\Http\Controllers\Reportes\ComisionesController;
+use App\Http\Controllers\Reportes\ComisionesDemoController;
 use App\Http\Controllers\Reportes\FuenteController;
 use App\Http\Controllers\Serologia\ClienteController;
 use App\Http\Controllers\Serologia\LaboratorioController;
@@ -57,5 +58,24 @@ Route::middleware('auth')->group(function () {
     Route::post('/reportes/fuentes/{fuente}/cargar', [FuenteController::class, 'cargar'])
         ->where('fuente', '[a-z_]+')
         ->name('reportes.fuentes.cargar');
-    Route::get('/reportes/comisiones', [ComisionesController::class, 'index'])->name('reportes.comisiones');
+    Route::get('/reportes/comisiones', [ComisionesController::class, 'index'])
+        ->name('reportes.comisiones')->block(300, 30);
+    Route::controller(ComisionesDemoController::class)->prefix('/reportes/comisiones')->name('reportes.comisiones.')->group(function () {
+        Route::post('/demo/rol', 'rol')->name('demo.rol')->block(300, 30);
+        Route::post('/demo/reiniciar', 'reiniciar')->name('demo.reiniciar')->block(300, 30);
+
+        Route::prefix('/liquidaciones')->name('liquidaciones.')->group(function () {
+            Route::post('/', 'nueva')->name('nueva')->block(300, 30);
+
+            Route::prefix('/{liquidacion}')->where(['liquidacion' => '[0-9]{4}-[0-9]{2}|[0-9]{4}-T[1-4]'])->group(function () {
+                Route::get('/', 'mostrar')->name('mostrar')->block(300, 30);
+                Route::post('/procesar', 'procesar')->name('procesar')->block(300, 30);
+                Route::post('/aprobar', 'aprobar')->name('aprobar')->block(300, 30);
+                Route::post('/rechazar', 'rechazar')->name('rechazar')->block(300, 30);
+                Route::post('/reenviar', 'reenviar')->name('reenviar')->block(300, 30);
+                Route::get('/correos/gerencia', 'correoGerencia')->name('correo-gerencia')->block(300, 30);
+                Route::get('/correos/asesor/{asesor}', 'correoAsesor')->name('correo-asesor')->block(300, 30);
+            });
+        });
+    });
 });

@@ -1,0 +1,69 @@
+<?php
+
+namespace App\Reportes\Comisiones;
+
+/**
+ * Reglas fijas del cálculo de comisiones que no están en las tablas COM_*.
+ */
+class AlcanceComisiones
+{
+    /**
+     * Líneas que se cuentan por fila de la fuente (línea de servicio) y no por
+     * contrato. Seguridad Total: un contrato con vitalicio de Sangre y de
+     * Tejido son 2 ST.
+     */
+    public const LINEAS_POR_FILA = ['ST'];
+
+    /**
+     * Rol del jefe => rol de su equipo. En las metas con atribución EQUIPO, lo
+     * logrado es la suma de lo que logró cada integrante del equipo en la
+     * misma línea.
+     *
+     * @var array<string, string>
+     */
+    public const EQUIPOS = [
+        'JEFE DE MARKETING' => 'EJECUTIVO DE VENTAS',
+        'JEFE DE OPERACIONES' => 'EJECUTIVO DE ANUALIDADES',
+    ];
+
+    /**
+     * Líneas que tienen meta pero cuyos datos todavía no están en ninguna
+     * fuente cargada. Se muestran como pendientes en vez de comisión 0.
+     */
+    public const LINEAS_SIN_FUENTE = ['MOROSO'];
+
+    /**
+     * Primer período con metas en COM_META.
+     */
+    public const PRIMER_PERIODO = '2026-10';
+
+    /**
+     * Cargo de la pantalla por rol de COM_META, en el orden de las pestañas:
+     * rol => [código, etiqueta, título].
+     *
+     * @var array<string, array{string, string, string}>
+     */
+    public const CARGOS = [
+        'EJECUTIVO DE VENTAS' => ['EJEC', 'Ejecutivo de ventas', 'Ejecutivos de venta'],
+        'REPRESENTANTE DE PROM LIMA' => ['LIMA', 'Rep. Prom. Lima', 'Representantes de promoción Lima'],
+        'REPRESENTANTE DE PROM PROVINCIA' => ['PROV', 'Rep. Prom. Provincia', 'Representantes de promoción Provincia'],
+        'EJECUTIVO DE ANUALIDADES' => ['ANUAL', 'Ejecutivo de anualidades', 'Ejecutivos de anualidades'],
+        'JEFE DE OPERACIONES' => ['OPE', 'Jefe de operaciones', 'Jefe de operaciones'],
+        'JEFE DE MARKETING' => ['MKT', 'Jefe de marketing', 'Jefe de marketing'],
+    ];
+
+    /**
+     * Nombre visible de cada línea.
+     *
+     * @var array<string, string>
+     */
+    public const LINEAS = [
+        'UCU' => 'UCU',
+        'TAMIZAJE' => 'Tamizaje',
+        'ADN' => 'ADN',
+        'NIPT' => 'NIPT / Genetic Loss',
+        'ST' => 'Seguridad Total',
+        'MOROSO' => 'Morosos',
+        'ANUALIDAD' => 'Anualidades',
+    ];
+}

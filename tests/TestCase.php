@@ -111,6 +111,47 @@ abstract class TestCase extends BaseTestCase
         });
     }
 
+    /**
+     * Crea en SQLite las tablas de configuración de comisiones que mantiene
+     * el área en Oracle: metas, tramos y línea de cada servicio.
+     */
+    protected function prepararComisiones(): void
+    {
+        Schema::create('com_meta', function (Blueprint $table): void {
+            $table->integer('meta_id')->primary();
+            $table->string('rol_cod', 60);
+            $table->string('atribucion', 20);
+            $table->string('linea_cod', 20);
+            $table->char('periodicidad', 1);
+            $table->string('tipo_cod', 20);
+            $table->string('base_tramo', 10);
+            $table->decimal('minimo', 14, 2);
+            $table->dateTime('vig_desde');
+            $table->dateTime('vig_hasta')->nullable();
+            $table->char('estado', 1);
+            $table->string('origen', 60)->nullable();
+            $table->string('observacion', 300)->nullable();
+        });
+        Schema::create('com_meta_tramo', function (Blueprint $table): void {
+            $table->integer('meta_id');
+            $table->integer('nro_tramo');
+            $table->decimal('desde', 14, 2);
+            $table->decimal('hasta', 14, 2)->nullable();
+            $table->decimal('valor', 14, 4);
+        });
+        Schema::create('com_servicio_linea', function (Blueprint $table): void {
+            $table->string('servicio', 100)->primary();
+            $table->string('linea_cod', 20);
+        });
+        Schema::create('users', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name');
+            $table->string('email')->nullable();
+            $table->string('codigo_netsuite', 150)->nullable();
+            $table->string('rol_netsuite', 60)->nullable();
+        });
+    }
+
     protected function prepararSerologia(): void
     {
         $this->withoutVite();

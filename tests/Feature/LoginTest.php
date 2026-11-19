@@ -51,6 +51,18 @@ class LoginTest extends TestCase
         $this->assertAuthenticated();
     }
 
+    public function test_vuelve_al_detalle_de_comisiones_despues_de_iniciar_sesion(): void
+    {
+        $detalle = route('reportes.comisiones.liquidaciones.mostrar', '2026-T4');
+
+        $this->get($detalle)->assertRedirectToRoute('login');
+        $this->post(route('login.store'), [
+            'email' => 'ana@criocord.pe', 'password' => 'secreta', 'empresa' => '001',
+        ])->assertRedirect($detalle);
+
+        $this->assertAuthenticated();
+    }
+
     /**
      * @param  array<string, string>  $cambios
      */

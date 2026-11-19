@@ -45,7 +45,7 @@ class LoginController extends Controller
             ->where('codigo_compania', $user->empresa)
             ->value('nombre_corto'));
 
-        return redirect()->route('home');
+        return redirect()->intended(route('home'));
     }
 
     public function destroy(Request $request): Response

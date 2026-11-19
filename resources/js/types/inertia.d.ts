@@ -21,6 +21,7 @@ declare module "@inertiajs/core" {
         flashDataType: {
             fuenteCargada?: { fuente: string; filas: number };
             cargaFuenteRecibida?: string;
+            comisiones?: { tipo: "exito" | "aviso"; titulo: string; descripcion: string };
         };
     }
 }
