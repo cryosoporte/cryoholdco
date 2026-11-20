@@ -242,7 +242,7 @@ class DesgloseComisiones
         foreach ($comisiones as $comision) {
             $meta = $comision->resultado->meta;
 
-            if (! $this->sinFuente($meta) && ! $this->porAntiguedad($meta) && ! $comision->resultado->alcanzoMinimo()) {
+            if (! $this->sinFuente($meta) && ! $this->porAntiguedad($meta) && ! $this->esBono($meta) && ! $comision->resultado->alcanzoMinimo()) {
                 $partes[] = $this->faltante($meta, $comision->resultado->faltanteParaMinimo());
 
                 break;
@@ -292,7 +292,7 @@ class DesgloseComisiones
             fn (MetaComision $meta): string => (AlcanceComisiones::LINEAS[$meta->linea] ?? $meta->linea).' '.implode(', ', array_map(
                 fn (TramoMeta $tramo): string => $this->describirTramo($meta, $tramo),
                 $meta->tramos,
-            )),
+            )).($this->esBono($meta) ? ' ('.BonoProntaVenta::LINEA_VENTAS.' emitidos hasta el día '.BonoProntaVenta::DIA_LIMITE.')' : ''),
             array_filter($metas, fn (MetaComision $meta): bool => ! $this->sinFuente($meta)),
         );
 
@@ -429,6 +429,11 @@ class DesgloseComisiones
     private function sinFuente(MetaComision $meta): bool
     {
         return in_array($meta->linea, AlcanceComisiones::LINEAS_SIN_FUENTE, true);
+    }
+
+    private function esBono(MetaComision $meta): bool
+    {
+        return $meta->linea === BonoProntaVenta::LINEA;
     }
 
     private function porAntiguedad(MetaComision $meta): bool

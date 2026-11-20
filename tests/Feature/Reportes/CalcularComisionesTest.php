@@ -3,6 +3,7 @@
 namespace Tests\Feature\Reportes;
 
 use App\Reportes\Comisiones\BaseFacturasComisiones;
+use App\Reportes\Comisiones\BonoProntaVenta;
 use App\Reportes\Comisiones\CalcularComisiones;
 use App\Reportes\Comisiones\ComisionCalculada;
 use App\Reportes\Comisiones\PeriodoComision;
@@ -282,6 +283,7 @@ class CalcularComisionesTest extends TestCase
 
     public function test_el_trimestre_descuenta_lo_cobrado_en_los_meses_y_paga_solo_la_diferencia(): void
     {
+        $this->app->instance(BonoProntaVenta::class, new BonoProntaVenta(10));
         $this->contratos(15, ['representante_ventas' => 'Rondon Fernandez, Liseth Carolina', 'fecha_emision' => '2026-10-10 00:00:00']);
         $this->contratos(14, ['representante_ventas' => 'Rondon Fernandez, Liseth Carolina', 'fecha_emision' => '2026-11-10 00:00:00']);
         $this->contratos(17, ['representante_ventas' => 'Rondon Fernandez, Liseth Carolina', 'fecha_emision' => '2026-12-10 00:00:00']);
@@ -303,5 +305,50 @@ class CalcularComisionesTest extends TestCase
         $this->assertSame(0.0, $cuba->pendiente());
 
         $this->assertSame(625.0, $resultado->total(), 'en el cierre trimestral solo se paga lo pendiente');
+        $this->assertSame([], array_filter(
+            $resultado->comisiones,
+            fn (ComisionCalculada $comision): bool => $comision->resultado->meta->linea === BonoProntaVenta::LINEA,
+        ), 'el bono pronta venta no entra en el trimestre');
+    }
+
+    public function test_sin_cuota_el_bono_pronta_venta_no_se_calcula(): void
+    {
+        $this->app->instance(BonoProntaVenta::class, new BonoProntaVenta(null));
+        $this->contratos(10, ['representante_ventas' => 'Rondon Fernandez, Liseth Carolina', 'fecha_emision' => '2026-10-01 00:00:00']);
+
+        $resultado = $this->calcular(PeriodoComision::mes(2026, 10));
+
+        $this->assertSame([], array_filter(
+            $resultado->comisiones,
+            fn (ComisionCalculada $comision): bool => $comision->resultado->meta->linea === BonoProntaVenta::LINEA,
+        ));
+    }
+
+    public function test_el_bono_pronta_venta_paga_el_monto_fijo_por_los_ucu_emitidos_hasta_el_dia_limite(): void
+    {
+        $this->app->instance(BonoProntaVenta::class, new BonoProntaVenta(10));
+        $minimo = 10;
+        $diaLimite = sprintf('2026-10-%02d 00:00:00', BonoProntaVenta::DIA_LIMITE);
+        $diaSiguiente = sprintf('2026-10-%02d 00:00:00', BonoProntaVenta::DIA_LIMITE + 1);
+
+        $this->contratos($minimo, ['representante_ventas' => 'Rondon Fernandez, Liseth Carolina', 'fecha_emision' => $diaLimite]);
+        $this->contratos($minimo - 1, ['representante_ventas' => 'Cuba Michilot, Claudia Milagros', 'fecha_emision' => '2026-10-01 00:00:00']);
+        $this->contratos(1, ['representante_ventas' => 'Cuba Michilot, Claudia Milagros', 'fecha_emision' => $diaSiguiente]);
+        $this->contratos(5, ['representante_ventas' => 'Cuba Michilot, Claudia Milagros', 'servicio' => 'TAMIZAJE', 'fecha_emision' => '2026-10-05 00:00:00']);
+
+        $resultado = $this->calcular(PeriodoComision::mes(2026, 10));
+
+        $rondon = $this->comision($resultado, 26, 0);
+        $this->assertSame((float) $minimo, $rondon->resultado->cantidad);
+        $this->assertSame(BonoProntaVenta::MONTO, $rondon->comision());
+
+        $cuba = $this->comision($resultado, 207, 0);
+        $this->assertSame((float) ($minimo - 1), $cuba->resultado->cantidad, 'no cuentan el UCU del día siguiente ni los Tamizajes');
+        $this->assertSame(0.0, $cuba->comision());
+
+        $this->assertSame([], array_filter(
+            $resultado->comisiones,
+            fn (ComisionCalculada $comision): bool => $comision->resultado->meta->linea === BonoProntaVenta::LINEA && $comision->asesor->rol !== BonoProntaVenta::ROL,
+        ), 'solo los ejecutivos de ventas tienen bono');
     }
 }

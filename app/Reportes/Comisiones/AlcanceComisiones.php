@@ -82,5 +82,6 @@ class AlcanceComisiones
         'ST' => 'Seguridad Total',
         'MOROSO' => 'Morosos',
         'ANUALIDAD' => 'Anualidades',
+        BonoProntaVenta::LINEA => 'Bono pronta venta',
     ];
 }

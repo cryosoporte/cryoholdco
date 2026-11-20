@@ -74,7 +74,7 @@ class DatosRealesComisionesTest extends TestCase
             DB::table((new FuenteFacturasOracle)->tabla())->insert([
                 'id_interno' => $fila,
                 'numero_contrato_oracle' => "PE-CR-{$fila}",
-                'fecha_emision' => '2026-10-15 00:00:00',
+                'fecha_emision' => '2026-10-25 00:00:00',
                 'servicio' => 'UCU SANGRE',
                 'tipo_documento' => '03- Boleta de Venta',
                 'subtotal_soles' => 1000,
@@ -106,7 +106,7 @@ class DatosRealesComisionesTest extends TestCase
         $this->assertSame('Octubre 2026', $liquidacion['periodo']);
         $this->assertTrue($liquidacion['es_demo_activa']);
         $this->assertSame(['EJEC', 'ANUAL', 'OPE', 'MKT'], array_column($liquidacion['cargos'], 'codigo'));
-        $this->assertSame(1125.0, $liquidacion['total']);
+        $this->assertSame(1125.0, $liquidacion['total'], 'UCU de Rondón');
         $this->assertSame(1, $liquidacion['colaboradores_con_comision']);
         $this->assertSame(5, $liquidacion['colaboradores']);
         $this->assertSame(28, $liquidacion['base']['filas'], 'la fila de MYPRENATAL no tiene línea');
@@ -114,7 +114,7 @@ class DatosRealesComisionesTest extends TestCase
         $this->assertSame(1, $liquidacion['base']['nombres_sin_configurar']);
 
         $ventas = $liquidacion['cargos'][0];
-        $this->assertSame(['UCU (15)'], $ventas['columnas']);
+        $this->assertSame(['UCU (15)'], $ventas['columnas'], 'el bono pronta venta está apagado');
         $this->assertSame(['Claudia Milagros Cuba Michilot', 'Liseth Carolina Rondon Fernandez'], array_column($ventas['filas'], 'nombre'));
         $this->assertSame([['texto' => '15 / 15', 'alcanzo' => true]], $ventas['filas'][1]['celdas']);
         $this->assertSame(1125.0, $ventas['total']);

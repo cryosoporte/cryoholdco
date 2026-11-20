@@ -19,6 +19,9 @@ use Carbon\CarbonImmutable;
  *   AlcanceComisiones::LINEAS_CON_MONTO_NETO el monto es el neto de todos
  *   los comprobantes, notas de crédito incluidas.
  *
+ * En un mes, los ejecutivos de ventas llevan además el bono pronta venta
+ * (BonoProntaVenta), que no entra en el trimestre.
+ *
  * En un trimestre, cada comisión trimestral lleva como adelanto lo que el
  * colaborador cobró por la misma línea en los tres meses.
  */
@@ -28,6 +31,7 @@ class CalcularComisiones
         private MetasComisiones $metas,
         private BaseFacturasComisiones $base,
         private AsesoresComisiones $asesores,
+        private BonoProntaVenta $bonoProntaVenta,
     ) {}
 
     public function calcular(PeriodoComision $periodo): ResultadoComisiones
@@ -37,6 +41,10 @@ class CalcularComisiones
         $metas = $this->metas->vigentes($periodo);
         $morosas = $this->anualidadesMorosas($metas, $periodo);
         $comisiones = $this->evaluarMetas($metas, $contratos, $this->montosNetos($periodo), $morosas, $asesores);
+
+        if ($periodo->periodicidad === Periodicidad::Mensual && $this->bonoProntaVenta->activo()) {
+            array_push($comisiones, ...$this->bonosProntaVenta($metas, $contratos, $asesores));
+        }
 
         if ($periodo->periodicidad === Periodicidad::Trimestral) {
             $adelantos = $this->adelantos($periodo, $asesores);
@@ -88,6 +96,41 @@ class CalcularComisiones
         }
 
         return $comisiones;
+    }
+
+    /**
+     * Un bono pronta venta por ejecutivo de ventas, con sus contratos UCU
+     * emitidos hasta el día límite. Solo si su rol tiene metas en el período.
+     *
+     * @param  list<MetaComision>  $metas
+     * @param  list<ContratoComisionable>  $contratos
+     * @param  list<AsesorComision>  $asesores
+     * @return list<ComisionCalculada>
+     */
+    private function bonosProntaVenta(array $metas, array $contratos, array $asesores): array
+    {
+        $bono = $this->bonoProntaVenta->meta();
+
+        if (! in_array($bono->rol, array_map(fn (MetaComision $meta): string => $meta->rol, $metas), true)) {
+            return [];
+        }
+
+        $bonos = [];
+
+        foreach ($asesores as $asesor) {
+            if ($asesor->rol !== $bono->rol) {
+                continue;
+            }
+
+            $ventas = array_filter(
+                $contratos,
+                fn (ContratoComisionable $contrato): bool => BonoProntaVenta::cuenta($contrato) && $this->esDe($contrato, $bono->atribucion, $asesor),
+            );
+            $monto = round(array_sum(array_map(fn (ContratoComisionable $contrato): float => $contrato->monto, $ventas)), 2);
+            $bonos[] = new ComisionCalculada($asesor, $bono->evaluar((float) count($ventas), $monto));
+        }
+
+        return $bonos;
     }
 
     /**
