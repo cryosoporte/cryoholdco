@@ -12,6 +12,7 @@ final readonly class ResultadoComisiones
      * @param  array<string, int>  $nombresSinConfigurar  nombre de NetSuite => contratos que no se asignaron porque nadie tiene ese CODIGO_NETSUITE
      * @param  array<string, int>  $serviciosSinLinea  servicio => filas sin línea en COM_SERVICIO_LINEA
      * @param  int  $filasBase  filas de la fuente que cuentan para comisiones en el período
+     * @param  int  $anualidadesSinPeriodo  anualidades del período sin fechas en la nota, que no se evalúan como morosas
      */
     public function __construct(
         public PeriodoComision $periodo,
@@ -19,6 +20,7 @@ final readonly class ResultadoComisiones
         public array $nombresSinConfigurar,
         public array $serviciosSinLinea,
         public int $filasBase = 0,
+        public int $anualidadesSinPeriodo = 0,
     ) {}
 
     public function total(): float

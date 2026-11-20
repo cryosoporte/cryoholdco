@@ -6,6 +6,7 @@ use App\Models\FuenteCarga;
 use App\Models\FuenteDatos;
 use App\Reportes\Fuentes\ColumnaFuente;
 use App\Reportes\Fuentes\Fuente;
+use App\Reportes\Fuentes\FuenteConColumnasCalculadas;
 use Generator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -147,6 +148,10 @@ class ImportarFuente
             } catch (InvalidArgumentException $error) {
                 throw new InvalidArgumentException("{$columna->encabezado}: {$error->getMessage()}", previous: $error);
             }
+        }
+
+        if ($fuente instanceof FuenteConColumnasCalculadas) {
+            $registro = [...$registro, ...$fuente->calcular($registro)];
         }
 
         return $registro;

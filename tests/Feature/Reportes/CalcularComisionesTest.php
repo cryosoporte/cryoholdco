@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Reportes;
 
+use App\Reportes\Comisiones\BaseFacturasComisiones;
 use App\Reportes\Comisiones\CalcularComisiones;
 use App\Reportes\Comisiones\ComisionCalculada;
 use App\Reportes\Comisiones\PeriodoComision;
@@ -33,6 +34,7 @@ class CalcularComisionesTest extends TestCase
             ['servicio' => 'VITALICIO SANGRE', 'linea_cod' => 'ST'],
             ['servicio' => 'VITALICIO TEJIDO', 'linea_cod' => 'ST'],
             ['servicio' => 'ANUALIDAD SANGRE', 'linea_cod' => 'ANUALIDAD'],
+            ['servicio' => 'ANUALIDAD TEJIDO', 'linea_cod' => 'ANUALIDAD'],
         ]);
 
         $this->meta(1, 'EJECUTIVO DE VENTAS', 'REPRESENTANTE', 'UCU', 15, [[15, 16, 75], [17, 18, 100], [19, 20, 125], [21, null, 150]]);
@@ -41,6 +43,7 @@ class CalcularComisionesTest extends TestCase
         $this->meta(10, 'REPRESENTANTE DE PROM LIMA', 'CAPTADOR', 'UCU', 15, [[15, null, 50]]);
         $this->meta(30, 'JEFE DE MARKETING', 'EQUIPO', 'UCU', 75, [[75, null, 15]]);
         $this->meta(40, 'EJECUTIVO DE ANUALIDADES', 'DUENO', 'ST', 5, [[5, null, 50]]);
+        $this->meta(41, 'EJECUTIVO DE ANUALIDADES', 'DUENO', 'MOROSO', 3, [[3, 3, 0.05], [4, 4, 0.10], [5, null, 0.15]], 'M', 'PORCENTAJE');
         $this->meta(50, 'JEFE DE OPERACIONES', 'EMPRESA', 'ANUALIDAD', 550000, [[550000, null, 0.0025]], 'M', 'PORCENTAJE', 'MONTO');
         $this->meta(51, 'JEFE DE OPERACIONES', 'EQUIPO', 'ST', 10, [[10, null, 50]]);
 
@@ -189,6 +192,82 @@ class CalcularComisionesTest extends TestCase
 
         $this->assertSame(600000.0, $operaciones->resultado->monto);
         $this->assertSame(1500.0, $operaciones->comision());
+    }
+
+    public function test_el_monto_de_anualidades_de_empresa_es_neto_de_notas_de_credito_y_aplicaciones(): void
+    {
+        $this->contratos(2, ['servicio' => 'ANUALIDAD TEJIDO', 'subtotal_soles' => 300000]);
+        $this->contratos(1, ['servicio' => 'ANUALIDAD SANGRE', 'subtotal_soles' => 5000, 'aplicacion_transaccion' => 'Nota de crédito #NC-1']);
+        $this->contratos(1, ['servicio' => 'ANUALIDAD SANGRE', 'subtotal_soles' => -60000, 'tipo_documento' => BaseFacturasComisiones::TIPO_NOTA_DE_CREDITO]);
+        $this->contratos(1, ['servicio' => 'ANUALIDAD SANGRE', 'subtotal_soles' => 90000, 'fecha_emision' => '2026-11-01 00:00:00']);
+
+        $operaciones = $this->comision($this->calcular(PeriodoComision::mes(2026, 10)), 4, 50);
+
+        $this->assertSame(2.0, $operaciones->resultado->cantidad);
+        $this->assertSame(545000.0, $operaciones->resultado->monto);
+        $this->assertSame(0.0, $operaciones->comision());
+    }
+
+    /**
+     * Anualidades cobradas en octubre de un contrato y servicio, una por año
+     * de inicio, con el importe indicado cada una.
+     */
+    private function anualidades(string $contrato, string $servicio, string $dueno, array $aniosInicio, float $importe, array $valores = []): void
+    {
+        foreach ($aniosInicio as $anio) {
+            $this->fila([
+                'numero_contrato_oracle' => $contrato,
+                'servicio' => $servicio,
+                'dueno' => $dueno,
+                'importe' => $importe,
+                'subtotal_soles' => round($importe / 1.18, 2),
+                'inicio_periodo' => "{$anio}-06-05 00:00:00",
+                'fin_periodo' => ($anio + 1).'-06-04 00:00:00',
+                ...$valores,
+            ]);
+        }
+    }
+
+    public function test_morosos_paga_por_bloques_de_anualidades_pagadas_con_inicio_antiguo(): void
+    {
+        $this->travelTo(now()->parse('2026-11-20 10:00:00', 'America/Lima'));
+        $this->anualidades('A', 'ANUALIDAD SANGRE', 'COBRADOR 1', [2023, 2024, 2025, 2026], 100);
+        $this->anualidades('A', 'ANUALIDAD TEJIDO', 'COBRADOR 1', [2024, 2025, 2026], 50);
+        $this->anualidades('B', 'ANUALIDAD SANGRE', 'COBRADOR 1', [2019, 2020, 2021, 2022, 2023, 2024], 200);
+        $this->anualidades('C', 'ANUALIDAD SANGRE', 'COBRADOR 1', [2025, 2026, 2027], 999);
+        $this->anualidades('D', 'ANUALIDAD SANGRE', 'COBRADOR 1', [2023, 2024], 999);
+        $this->anualidades('E', 'ANUALIDAD SANGRE', 'COBRADOR 1', [2022, 2023], 999);
+        $this->anualidades('E', 'ANUALIDAD SANGRE', 'COBRADOR 1', [2024], 999, ['tipo_documento' => '07- Nota de crédito']);
+        $this->anualidades('F', 'ANUALIDAD SANGRE', 'COBRADOR 2', [2024, 2025, 2026], 101.7);
+        $this->fila(['numero_contrato_oracle' => 'G', 'servicio' => 'ANUALIDAD SANGRE', 'dueno' => 'COBRADOR 1', 'nota' => 'SIN FECHAS']);
+
+        $resultado = $this->calcular(PeriodoComision::mes(2026, 10));
+
+        $marcos = $this->comision($resultado, 107, 41);
+        $this->assertSame(3.0, $marcos->resultado->cantidad, 'A Sangre, A Tejido y B; C empieza en 2025, D y E tienen menos de 3');
+        $this->assertSame(1750.0, $marcos->resultado->monto);
+        $this->assertSame([
+            [3.0, 150.0, 7.5],
+            [4.0, 400.0, 40.0],
+            [5.0, 1200.0, 180.0],
+        ], array_map(fn ($parte): array => [$parte->cantidad, $parte->monto, $parte->comision], $marcos->partes));
+        $this->assertSame(227.5, $marcos->comision());
+        $this->assertTrue($marcos->alcanzo());
+
+        $katherine = $this->comision($resultado, 123, 41);
+        $this->assertSame(15.26, $katherine->comision(), '305.10 × 5 %');
+        $this->assertSame(1, $resultado->anualidadesSinPeriodo);
+    }
+
+    public function test_el_limite_de_antiguedad_depende_del_anio_en_que_nos_encontramos(): void
+    {
+        $this->anualidades('A', 'ANUALIDAD SANGRE', 'COBRADOR 1', [2025, 2026, 2027], 100);
+
+        $this->travelTo(now()->parse('2026-12-31 10:00:00', 'America/Lima'));
+        $this->assertSame(0.0, $this->comision($this->calcular(PeriodoComision::mes(2026, 10)), 107, 41)->comision(), 'en 2026 el inicio debe ser 2024 o antes');
+
+        $this->travelTo(now()->parse('2027-01-05 10:00:00', 'America/Lima'));
+        $this->assertSame(15.0, $this->comision($this->calcular(PeriodoComision::mes(2026, 10)), 107, 41)->comision(), 'en 2027 basta con 2025');
     }
 
     public function test_informa_los_nombres_de_netsuite_que_nadie_tiene_configurados(): void

@@ -72,8 +72,11 @@ class FuenteDatosTest extends TestCase
         $this->assertSame('prueba_fuentes_datos', (new FuenteDatos)->getTable());
     }
 
-    public function test_la_tabla_de_la_fuente_de_prueba_tiene_sus_46_columnas(): void
+    public function test_la_tabla_de_la_fuente_de_prueba_tiene_sus_46_columnas_y_las_2_calculadas(): void
     {
-        $this->assertCount(46, DB::getSchemaBuilder()->getColumnListing((new FuenteFacturasOracle)->tabla()));
+        $columnas = DB::getSchemaBuilder()->getColumnListing((new FuenteFacturasOracle)->tabla());
+
+        $this->assertCount(48, $columnas);
+        $this->assertSame(['inicio_periodo', 'fin_periodo'], array_slice($columnas, 46));
     }
 }

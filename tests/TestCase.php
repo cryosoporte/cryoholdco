@@ -5,6 +5,7 @@ namespace Tests;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\FuenteCarga;
 use App\Reportes\Fuentes\CatalogoFuentes;
+use App\Reportes\Fuentes\FuenteConColumnasCalculadas;
 use App\Reportes\Fuentes\FuenteFacturasOracle;
 use App\Reportes\Fuentes\TipoColumna;
 use Carbon\CarbonImmutable;
@@ -78,8 +79,12 @@ abstract class TestCase extends BaseTestCase
         ]);
 
         foreach ((new CatalogoFuentes)->todas() as $fuente) {
-            Schema::create($fuente->tabla(), function (Blueprint $table) use ($fuente): void {
-                foreach ($fuente->columnas() as $columna) {
+            $columnas = $fuente instanceof FuenteConColumnasCalculadas
+                ? [...$fuente->columnas(), ...$fuente->columnasCalculadas()]
+                : $fuente->columnas();
+
+            Schema::create($fuente->tabla(), function (Blueprint $table) use ($columnas): void {
+                foreach ($columnas as $columna) {
                     $definicion = match ($columna->tipo) {
                         TipoColumna::Entero => $table->bigInteger($columna->columna),
                         TipoColumna::Decimal => $table->decimal($columna->columna, $columna->precision, $columna->escala),

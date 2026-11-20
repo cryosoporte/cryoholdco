@@ -84,7 +84,7 @@ class DesgloseComisiones
 
         foreach ($porAsesor as $suyas) {
             $asesor = $suyas[0]->asesor;
-            $lineas = array_map($this->linea(...), $suyas);
+            $lineas = array_merge(...array_map($this->lineas(...), $suyas));
             $totalAsesor = round(array_sum(array_column($lineas, 'comision')), 2);
             $nombre = Str::title(Str::lower(Str::squish($asesor->nombre)));
 
@@ -128,6 +128,10 @@ class DesgloseComisiones
             return $linea;
         }
 
+        if ($this->porAntiguedad($meta)) {
+            return "{$linea} ({$this->entero($meta->minimo)}+ años)";
+        }
+
         $equipo = $meta->atribucion === Atribucion::Equipo ? ' equipo' : '';
 
         return "{$linea}{$equipo} ({$this->cantidadOMonto($meta, $meta->minimo)})";
@@ -143,11 +147,47 @@ class DesgloseComisiones
             return ['texto' => 'Sin fuente', 'alcanzo' => null];
         }
 
-        $texto = $meta->baseTramo === BaseTramo::Monto
-            ? $this->soles($resultado->monto)
-            : $this->entero($resultado->cantidad).' / '.$this->entero($meta->minimo);
+        $texto = match (true) {
+            $this->porAntiguedad($meta), $meta->baseTramo === BaseTramo::Monto => $this->soles($resultado->monto),
+            default => $this->entero($resultado->cantidad).' / '.$this->entero($meta->minimo),
+        };
 
-        return ['texto' => $texto, 'alcanzo' => $resultado->alcanzoMinimo()];
+        return ['texto' => $texto, 'alcanzo' => $comision->alcanzo()];
+    }
+
+    /**
+     * Las líneas del detalle de una comisión: una, o una por bloque de años
+     * en las líneas por antigüedad.
+     *
+     * @return list<Linea>
+     */
+    private function lineas(ComisionCalculada $comision): array
+    {
+        $meta = $comision->resultado->meta;
+
+        if (! $this->porAntiguedad($meta)) {
+            return [$this->linea($comision)];
+        }
+
+        $linea = AlcanceComisiones::LINEAS[$meta->linea] ?? $meta->linea;
+
+        if ($comision->partes === []) {
+            return [[
+                'concepto' => $linea,
+                'logrado' => $this->soles(0),
+                'cuota' => "{$this->entero($meta->minimo)}+ años",
+                'tramo' => 'Sin anualidades morosas en el período',
+                'comision' => 0.0,
+            ]];
+        }
+
+        return array_map(fn (ResultadoMeta $parte): array => [
+            'concepto' => "{$linea} {$this->describirRango($meta, $parte->tramo)}",
+            'logrado' => $this->soles($parte->monto),
+            'cuota' => "{$this->entero($meta->minimo)}+ años",
+            'tramo' => $this->describirTramo($meta, $parte->tramo),
+            'comision' => $parte->comision,
+        ], $comision->partes);
     }
 
     /** @return Linea */
@@ -202,7 +242,7 @@ class DesgloseComisiones
         foreach ($comisiones as $comision) {
             $meta = $comision->resultado->meta;
 
-            if (! $this->sinFuente($meta) && ! $comision->resultado->alcanzoMinimo()) {
+            if (! $this->sinFuente($meta) && ! $this->porAntiguedad($meta) && ! $comision->resultado->alcanzoMinimo()) {
                 $partes[] = $this->faltante($meta, $comision->resultado->faltanteParaMinimo());
 
                 break;
@@ -261,6 +301,20 @@ class DesgloseComisiones
 
     private function describirTramo(MetaComision $meta, TramoMeta $tramo): string
     {
+        $rango = $this->describirRango($meta, $tramo);
+
+        return match ($meta->tipo) {
+            TipoMeta::PorContrato => "{$rango} × {$this->soles($tramo->valor, 0)}",
+            TipoMeta::Porcentaje => "{$rango}: ".rtrim(rtrim(number_format($tramo->valor * 100, 2), '0'), '.').'%',
+            TipoMeta::MontoFijo => "{$rango}: {$this->soles($tramo->valor)}",
+        };
+    }
+
+    /**
+     * "15–16", "21+", "3", o en líneas por antigüedad "3 años", "5+ años".
+     */
+    private function describirRango(MetaComision $meta, TramoMeta $tramo): string
+    {
         $desde = $this->cantidadOMonto($meta, $tramo->desde);
         $rango = match (true) {
             $tramo->hasta === null => "{$desde}+",
@@ -268,11 +322,7 @@ class DesgloseComisiones
             default => "{$desde}–{$this->cantidadOMonto($meta, $tramo->hasta)}",
         };
 
-        return match ($meta->tipo) {
-            TipoMeta::PorContrato => "{$rango} × {$this->soles($tramo->valor, 0)}",
-            TipoMeta::Porcentaje => "{$rango}: ".rtrim(rtrim(number_format($tramo->valor * 100, 2), '0'), '.').'%',
-            TipoMeta::MontoFijo => "{$rango}: {$this->soles($tramo->valor)}",
-        };
+        return $this->porAntiguedad($meta) ? "{$rango} años" : $rango;
     }
 
     /**
@@ -294,7 +344,7 @@ class DesgloseComisiones
                 'etiqueta' => $linea['concepto'],
                 'valor' => $linea['logrado'],
                 'detalle' => "cuota {$linea['cuota']} ({$cargo})",
-                'tono' => $comision->resultado->alcanzoMinimo() ? 'positivo' : 'atencion',
+                'tono' => $comision->alcanzo() ? 'positivo' : 'atencion',
             ];
         }
 
@@ -329,6 +379,12 @@ class DesgloseComisiones
 
         foreach ($sinFuente as $linea) {
             $puntos[] = "{$linea}: aún no hay fuente de datos, esa comisión no está incluida en el total.";
+        }
+
+        if ($resultado->anualidadesSinPeriodo > 0) {
+            $puntos[] = $resultado->anualidadesSinPeriodo === 1
+                ? '1 anualidad del período no trae en la Nota las fechas que cubre: no se evalúa como morosa.'
+                : "{$resultado->anualidadesSinPeriodo} anualidades del período no traen en la Nota las fechas que cubren: no se evalúan como morosas.";
         }
 
         foreach ($this->metasDeIndicador($resultado) as $comision) {
@@ -373,6 +429,11 @@ class DesgloseComisiones
     private function sinFuente(MetaComision $meta): bool
     {
         return in_array($meta->linea, AlcanceComisiones::LINEAS_SIN_FUENTE, true);
+    }
+
+    private function porAntiguedad(MetaComision $meta): bool
+    {
+        return in_array($meta->linea, AlcanceComisiones::LINEAS_POR_ANTIGUEDAD, true);
     }
 
     private function cantidadOMonto(MetaComision $meta, float $valor): string

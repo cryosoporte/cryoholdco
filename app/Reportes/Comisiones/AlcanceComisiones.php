@@ -29,8 +29,25 @@ class AlcanceComisiones
     /**
      * Líneas que tienen meta pero cuyos datos todavía no están en ninguna
      * fuente cargada. Se muestran como pendientes en vez de comisión 0.
+     *
+     * @var list<string>
      */
-    public const LINEAS_SIN_FUENTE = ['MOROSO'];
+    public const LINEAS_SIN_FUENTE = [];
+
+    /**
+     * Líneas que se pagan por bloques de antigüedad: cada anualidad morosa
+     * cae en el tramo de sus años (3, 4, 5+) y se paga el porcentaje de ese
+     * tramo sobre su monto. La comisión es la suma de los bloques.
+     */
+    public const LINEAS_POR_ANTIGUEDAD = ['MOROSO'];
+
+    /**
+     * Líneas cuyo monto, en las metas de empresa o clínica, es el neto de
+     * todos los comprobantes del período: incluye notas de crédito y
+     * comprobantes con "Aplicación de transacción". La cantidad de contratos
+     * no cambia.
+     */
+    public const LINEAS_CON_MONTO_NETO = ['ANUALIDAD'];
 
     /**
      * Primer período con metas en COM_META.

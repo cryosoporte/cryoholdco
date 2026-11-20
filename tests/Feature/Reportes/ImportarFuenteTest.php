@@ -73,6 +73,29 @@ class ImportarFuenteTest extends TestCase
         DB::table('fuentes_datos')->update(['fecha_actualizacion' => '2026-11-01 09:00:00', 'filas' => 1, 'archivo' => 'anterior.xlsx']);
     }
 
+    public function test_guarda_el_periodo_que_cubre_cada_anualidad_desde_la_nota(): void
+    {
+        $ruta = $this->xlsx([
+            ['ID interno' => 1, 'Nota' => 'MANTENIMIENTO ANUAL POR CRIOPRESERVACIÓN DE SANGRE 05/06/2023 04/06/2024'],
+            ['ID interno' => 2, 'Nota' => 'MANTENIMIENTO ANUAL POR CRIOPRESERVACIÓN DE TEJIDO 27/03/2027-26/03/2028'],
+            ['ID interno' => 3, 'Nota' => 'MANTENIMIENTO ANUAL POR CRIOPRESERVACIÓN DE SANGRE'],
+            ['ID interno' => 4, 'Nota' => 'MANTENIMIENTO ANUAL 31/02/2026 30/02/2027'],
+            ['ID interno' => 5],
+        ]);
+
+        $this->assertSame(5, $this->importar($ruta), 'una nota sin fechas válidas no rechaza la fila');
+
+        $periodos = DB::table('fuente_facturas_oracle')->orderBy('id_interno')->get(['inicio_periodo', 'fin_periodo'])
+            ->map(fn (object $fila): array => [$fila->inicio_periodo, $fila->fin_periodo])->all();
+        $this->assertSame([
+            ['2023-06-05 00:00:00', '2024-06-04 00:00:00'],
+            ['2027-03-27 00:00:00', '2028-03-26 00:00:00'],
+            [null, null],
+            [null, null],
+            [null, null],
+        ], $periodos);
+    }
+
     public function test_guarda_todas_las_filas_con_sus_tipos_convertidos(): void
     {
         $ruta = $this->xlsx([

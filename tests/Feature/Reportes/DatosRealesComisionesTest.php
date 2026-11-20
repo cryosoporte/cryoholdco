@@ -132,8 +132,9 @@ class DatosRealesComisionesTest extends TestCase
         $this->assertSame('Te faltaron S/ 250,000 en Anualidades para la cuota de S/ 550,000.', $giusti['nota']);
 
         $marcos = array_column($liquidacion['asesores'], null, 'id')['107'];
-        $this->assertSame([['texto' => 'Sin fuente', 'alcanzo' => null]], $liquidacion['cargos'][1]['filas'][0]['celdas']);
-        $this->assertSame('Pendiente: falta la fuente de datos', $marcos['lineas'][0]['tramo']);
+        $this->assertSame(['Morosos (3+ años)'], $liquidacion['cargos'][1]['columnas']);
+        $this->assertSame([['texto' => 'S/ 0.00', 'alcanzo' => false]], $liquidacion['cargos'][1]['filas'][0]['celdas']);
+        $this->assertSame('Sin anualidades morosas en el período', $marcos['lineas'][0]['tramo']);
 
         $operaciones = $liquidacion['cargos'][2];
         $this->assertSame([['texto' => 'S/ 300,000.00', 'alcanzo' => false]], $operaciones['filas'][0]['celdas']);
@@ -147,7 +148,7 @@ class DatosRealesComisionesTest extends TestCase
         $this->assertSame([
             '«ADNTRO CRIOCORD, USUARIO» figura en 1 contrato y ningún usuario lo tiene como CODIGO_NETSUITE: no se le asigna comisión.',
             'El servicio «MYPRENATAL» tiene 1 fila sin línea en COM_SERVICIO_LINEA: no cuenta para comisiones.',
-            'Morosos: aún no hay fuente de datos, esa comisión no está incluida en el total.',
+            '2 anualidades del período no traen en la Nota las fechas que cubren: no se evalúan como morosas.',
             'UCU del equipo: 25, faltaron 50 para la cuota de 75.',
             'Anualidades de la empresa: S/ 300,000.00, faltaron S/ 250,000 para la cuota de S/ 550,000.',
             '4 colaboradores no alcanzaron la cuota mínima en ninguna línea.',
