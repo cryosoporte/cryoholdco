@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Administracion\PermisosAdministracion;
 use App\Models\User;
 use App\Reportes\Comisiones\PermisosComisiones;
 use Illuminate\Support\Facades\Gate;
@@ -14,6 +15,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        foreach (PermisosAdministracion::ROLES_POR_ACCION as $accion => $roles) {
+            Gate::define("administracion.$accion", fn (User $usuario): bool => $usuario->tieneRol(...$roles));
+        }
+
         foreach (PermisosComisiones::ROLES_POR_ACCION as $accion => $roles) {
             Gate::define("comisiones.$accion", fn (User $usuario): bool => $usuario->tieneRol(...$roles));
         }

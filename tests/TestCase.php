@@ -5,15 +5,18 @@ namespace Tests;
 use App\Administracion\RolSistema;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\FuenteCarga;
+use App\Models\User;
 use App\Reportes\Fuentes\CatalogoFuentes;
 use App\Reportes\Fuentes\FuenteConColumnasCalculadas;
 use App\Reportes\Fuentes\FuenteFacturasOracle;
 use App\Reportes\Fuentes\TipoColumna;
 use Carbon\CarbonImmutable;
+use Database\Factories\UserFactory;
 use DateTimeInterface;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
@@ -40,6 +43,35 @@ abstract class TestCase extends BaseTestCase
     protected function asignarRol(int $usuarioId, RolSistema $rol): void
     {
         DB::connection('sqlite')->table('usuario_rol')->insert(['user_id' => $usuarioId, 'rol' => $rol->value]);
+    }
+
+    protected function prepararUsuarios(): void
+    {
+        Schema::create('users', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name');
+            $table->string('email');
+            $table->string('empresa', 3);
+            $table->string('identificacion')->nullable();
+            $table->string('password');
+            $table->timestamp('email_verified_at')->nullable();
+            $table->rememberToken();
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * @param  array<string, string>  $correosPorEmpresa
+     * @return Collection<string, User>
+     */
+    protected function crearPersonaUsuario(string $nombre, ?string $dni, array $correosPorEmpresa): Collection
+    {
+        return collect($correosPorEmpresa)->map(fn (string $correo, string $empresa): User => UserFactory::new()->create([
+            'name' => $nombre,
+            'identificacion' => $dni,
+            'email' => $correo,
+            'empresa' => $empresa,
+        ]));
     }
 
     /**

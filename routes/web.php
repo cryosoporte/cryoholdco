@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Administracion\AccesoLaboratorioController;
+use App\Http\Controllers\Administracion\UsuarioController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LoginLaboratorioController;
 use App\Http\Controllers\Reportes\ComisionesController;
@@ -10,6 +11,9 @@ use App\Http\Controllers\Serologia\ClienteController;
 use App\Http\Controllers\Serologia\LaboratorioController;
 use App\Http\Controllers\Serologia\SerologiaController;
 use App\Http\Middleware\LaboratorioConAcceso;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('serologia')->group(function () {
@@ -47,10 +51,26 @@ Route::middleware('auth')->group(function () {
     Route::post('/serologia/recordatorio', [SerologiaController::class, 'enviarRecordatorio'])->name('serologia.recordatorio');
 
     // administración
-    Route::inertia('/administracion', 'administracion')->name('administracion');
-    Route::get('/administracion/laboratorios', [AccesoLaboratorioController::class, 'index'])->name('administracion.laboratorios');
-    Route::post('/administracion/laboratorios', [AccesoLaboratorioController::class, 'crear'])->name('administracion.laboratorios.crear');
-    Route::put('/administracion/laboratorios/{acceso}', [AccesoLaboratorioController::class, 'actualizar'])->name('administracion.laboratorios.actualizar');
+    Route::middleware('can:administracion.ver')->group(function () {
+        $autorizarModeloFaltante = function (Request $request, ModelNotFoundException $exception): never {
+            Gate::authorize('administracion.ver');
+
+            throw $exception;
+        };
+
+        Route::inertia('/administracion', 'administracion')->name('administracion');
+        Route::get('/administracion/laboratorios', [AccesoLaboratorioController::class, 'index'])->name('administracion.laboratorios');
+        Route::post('/administracion/laboratorios', [AccesoLaboratorioController::class, 'crear'])->name('administracion.laboratorios.crear');
+        Route::put('/administracion/laboratorios/{acceso}', [AccesoLaboratorioController::class, 'actualizar'])
+            ->name('administracion.laboratorios.actualizar')
+            ->missing($autorizarModeloFaltante);
+        Route::get('/administracion/usuarios', [UsuarioController::class, 'index'])->name('administracion.usuarios');
+        Route::put('/administracion/usuarios/{usuario}', [UsuarioController::class, 'asignarRol'])
+            ->name('administracion.usuarios.rol')
+            ->whereNumber('usuario')
+            ->block(10, 10)
+            ->missing($autorizarModeloFaltante);
+    });
 
     // reportes
     Route::inertia('/reportes', 'reportes')->name('reportes');

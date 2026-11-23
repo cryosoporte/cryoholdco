@@ -44,6 +44,13 @@ class HandleInertiaRequests extends Middleware
             'roles' => fn (): array => $request->user() instanceof User
                 ? $request->user()->roles->pluck('rol.value')->all()
                 : [],
+            'rutasAdministracion' => function () use ($request): array {
+                $usuario = $request->user();
+
+                return $usuario instanceof User && $usuario->can('administracion.ver')
+                    ? ['administracion.laboratorios', 'administracion.usuarios']
+                    : [];
+            },
             'rutasReportes' => function () use ($request): array {
                 $usuario = $request->user();
                 if (! $usuario instanceof User) {
