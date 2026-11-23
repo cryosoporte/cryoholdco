@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -40,6 +41,19 @@ class HandleInertiaRequests extends Middleware
             'assetUrl' => rtrim(asset(''), '/'),
             'empresa' => $request->user()?->empresa,
             'user' => $request->user()?->only(['name', 'email']),
+            'roles' => fn (): array => $request->user() instanceof User
+                ? $request->user()->roles->pluck('rol.value')->all()
+                : [],
+            'rutasReportes' => function () use ($request): array {
+                $usuario = $request->user();
+                if (! $usuario instanceof User) {
+                    return [];
+                }
+
+                return $usuario->can('comisiones.ver')
+                    ? ['reportes.comisiones', 'reportes.fuentes']
+                    : ['reportes.fuentes'];
+            },
         ];
     }
 }

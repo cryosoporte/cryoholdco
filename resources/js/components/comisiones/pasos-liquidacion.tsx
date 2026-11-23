@@ -20,7 +20,7 @@ export function PasosLiquidacion({ liquidacion }: { liquidacion: Liquidacion }) 
         `${liquidacion.base.filas.toLocaleString("es-PE")} filas de ${liquidacion.base.fuente}`,
         rechazado ? "Devuelta por gerencia" : actual >= 1 ? "Correo enviado a gerencia" : "Pendiente de procesar",
         aprobacion ? `Por ${aprobacion.por}` : "Pendiente de aprobación",
-        actual >= 2 ? `${enviados} de ${liquidacion.envios.length} correos` : "Después de la aprobación",
+        actual >= 3 ? `${enviados} de ${liquidacion.envios.length} correos` : actual === 2 ? "Pendiente de envío por Administración" : "Después de la aprobación",
     ];
 
     return (

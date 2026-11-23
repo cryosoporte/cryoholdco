@@ -5,45 +5,31 @@ namespace App\Reportes\Comisiones;
 use App\Models\FuenteDatos;
 use App\Reportes\Fuentes\FuenteFacturasOracle;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 /**
- * Liquidaciones calculadas con las metas de COM_META, la fuente de facturas
- * y los colaboradores de USERS. Solo consulta.
+ * Datos de la liquidación mensual o del cierre calculado con los meses aprobados.
  *
- * Todavía no hay liquidaciones guardadas: el historial solo tiene la
- * liquidación activa y su estado vive en la sesión (DemoComisiones). Los
- * correos de los colaboradores son de ejemplo.test.
- *
- * Los períodos van desde AlcanceComisiones::PRIMER_PERIODO hasta el mes en
- * curso: "2026-10" es un mes y "2026-T4" el cierre del cuarto trimestre.
- *
- * @phpstan-import-type Resumen from DatosEjemploComisiones
- * @phpstan-import-type Liquidacion from DatosEjemploComisiones
- * @phpstan-import-type Asesor from DatosEjemploComisiones
- * @phpstan-import-type Envio from DatosEjemploComisiones
+ * @phpstan-type CodigoCargo 'EJEC'|'LIMA'|'PROV'|'ANUAL'|'OPE'|'MKT'
+ * @phpstan-type Estado 'borrador'|'enviada'|'rechazada'|'aprobada'|'enviada_personal'
+ * @phpstan-type Base array{fuente: string, actualizacion_fuente?: array{codigo: string, nombre: string, fecha_actualizacion: ?string, actualizado_por: ?string}|null, archivo: string, filas: int, desde: string, hasta: string, servicios_sin_configurar: int, nombres_sin_configurar: int, liquidaciones_mensuales?: array<string, int>}
+ * @phpstan-type Indicador array{etiqueta: string, valor: string, detalle: ?string, tono: 'neutral'|'positivo'|'atencion'}
+ * @phpstan-type Celda array{texto: string, alcanzo: ?bool}
+ * @phpstan-type Fila array{asesor_id: string, nombre: string, celdas: list<Celda>, comision: float}
+ * @phpstan-type Cargo array{codigo: CodigoCargo, etiqueta: string, titulo: string, regla: string, columnas: list<string>, filas: list<Fila>, total: float}
+ * @phpstan-type ResumenCargo array{cargo: string, con_comision: int, colaboradores: int, total: float}
+ * @phpstan-type Linea array{concepto: string, logrado: string, cuota: string, tramo: string, comision: float}
+ * @phpstan-type Asesor array{id: string, nombre: string, nombre_corto: string, correo: string, cargo_codigo: CodigoCargo, cargo: string, total: float, lineas: list<Linea>, nota: string}
+ * @phpstan-type Envio array{asesor_id: string, nombre: string, correo: string, estado: 'pendiente'|'enviado'|'fallido', enviado_en: ?string, error: ?string}
+ * @phpstan-type Evento array{tipo: 'procesada'|'rechazada'|'aprobada'|'enviada_personal'|'reenvio', fecha: string, por: string, comentario: ?string}
+ * @phpstan-type Liquidacion array{id: string, periodo: string, tipo_periodo: 'mensual'|'trimestral', desde: string, hasta: string, estado: Estado, total: float, colaboradores_con_comision: int, colaboradores: int, actualizada_en: string, base: Base, indicadores: list<Indicador>, cargos: list<Cargo>, resumen_cargos: list<ResumenCargo>, puntos_revision: list<string>, asesores: list<Asesor>, envios: list<Envio>, historial: list<Evento>, correo_gerencia: string}
  */
-class DatosRealesComisiones implements DatosComisiones
+class DatosRealesComisiones
 {
     public const CORREO_GERENCIA = 'gerencia@ejemplo.test';
 
-    /** @var array<string, Liquidacion> */
-    private array $calculadas = [];
-
-    public function __construct(
-        private CalcularComisiones $calculo,
-        private DesgloseComisiones $desglose,
-    ) {}
-
-    /**
-     * El último mes cerrado o, si aún no hay ninguno, el primer período.
-     */
-    public function periodoInicial(): string
-    {
-        $mesAnterior = $this->hoy()->subMonthNoOverflow()->format('Y-m');
-
-        return max($mesAnterior, AlcanceComisiones::PRIMER_PERIODO);
-    }
+    public function __construct(private DesgloseComisiones $desglose) {}
 
     /** @return list<array{id: string, etiqueta: string}> */
     public function periodosDisponibles(): array
@@ -63,53 +49,13 @@ class DatosRealesComisiones implements DatosComisiones
         return [...$meses, ...array_values($trimestres)];
     }
 
-    /** @return list<Resumen> */
-    public function liquidaciones(string $activa): array
-    {
-        $liquidacion = $this->liquidacion($activa, $activa) ?? $this->liquidacion($this->periodoInicial(), $this->periodoInicial());
-
-        return [array_intersect_key($liquidacion, array_flip([
-            'id', 'periodo', 'tipo_periodo', 'desde', 'hasta', 'estado', 'total',
-            'colaboradores_con_comision', 'colaboradores', 'actualizada_en', 'es_demo_activa',
-        ]))];
-    }
-
-    /** @return Liquidacion|null */
-    public function liquidacion(string $id, string $activa): ?array
-    {
-        $periodo = $this->periodo($id);
-
-        if ($periodo === null) {
-            return null;
-        }
-
-        $this->calculadas[$id] ??= $this->calcular($id, $periodo);
-
-        return [...$this->calculadas[$id], 'es_demo_activa' => $id === $activa];
-    }
-
-    /**
-     * @param  Asesor  $asesor
-     * @return Envio
-     */
-    public function envioPendiente(array $asesor): array
-    {
-        return [
-            'asesor_id' => $asesor['id'],
-            'nombre' => $asesor['nombre'],
-            'correo' => $asesor['correo'],
-            'estado' => 'pendiente',
-            'enviado_en' => null,
-            'error' => null,
-        ];
-    }
-
     /** @return Liquidacion */
-    private function calcular(string $id, PeriodoComision $periodo): array
+    public function desdeResultado(string $id, ResultadoComisiones $resultado): array
     {
-        $resultado = $this->calculo->calcular($periodo);
+        $periodo = $resultado->periodo;
         $desglose = $this->desglose->armar($resultado);
-        $fuente = FuenteDatos::porCodigo(FuenteFacturasOracle::CODIGO);
+        $mensuales = $resultado->liquidacionesMensuales;
+        $fuente = $mensuales === [] ? FuenteDatos::porCodigo(FuenteFacturasOracle::CODIGO) : null;
         $desde = $periodo->desde->toDateString();
         $hasta = $periodo->hasta->toDateString();
 
@@ -124,10 +70,11 @@ class DatosRealesComisiones implements DatosComisiones
             'colaboradores_con_comision' => $desglose['colaboradores_con_comision'],
             'colaboradores' => $desglose['colaboradores'],
             'actualizada_en' => ($fuente?->fecha_actualizacion ?? $this->hoy())->toIso8601String(),
-            'es_demo_activa' => false,
             'base' => [
-                'fuente' => $fuente->nombre ?? 'Facturas Oracle NetSuite',
-                'archivo' => $fuente->archivo ?? '—',
+                'fuente' => $mensuales === [] ? ($fuente->nombre ?? 'Facturas Oracle NetSuite') : 'Liquidaciones mensuales aprobadas',
+                'actualizacion_fuente' => $fuente ? Arr::only($fuente->datosActualizacion(), ['codigo', 'nombre', 'fecha_actualizacion', 'actualizado_por']) : null,
+                'archivo' => $mensuales === [] ? ($fuente->archivo ?? '—') : implode(', ', array_keys($mensuales)),
+                ...($mensuales === [] ? [] : ['liquidaciones_mensuales' => $mensuales]),
                 'filas' => $resultado->filasBase,
                 'desde' => $desde,
                 'hasta' => $hasta,
@@ -145,7 +92,7 @@ class DatosRealesComisiones implements DatosComisiones
         ];
     }
 
-    private function periodo(string $id): ?PeriodoComision
+    public function periodo(string $id): ?PeriodoComision
     {
         if (! in_array($id, array_column($this->periodosDisponibles(), 'id'), true)) {
             return null;

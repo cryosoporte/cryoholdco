@@ -16,12 +16,14 @@ final readonly class ComisionCalculada
 {
     /**
      * @param  list<ResultadoMeta>  $partes  bloques por tramo, solo en líneas por antigüedad
+     * @param  list<ContratoComisionable|AnualidadMorosa>  $contratos  respaldo de la atribución personal
      */
     public function __construct(
         public AsesorComision $asesor,
         public ResultadoMeta $resultado,
         public ?float $adelanto = null,
         public array $partes = [],
+        public array $contratos = [],
     ) {}
 
     public function comision(): float

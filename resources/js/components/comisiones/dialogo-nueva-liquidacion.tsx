@@ -50,7 +50,7 @@ export function DialogoNuevaLiquidacion({ periodos }: { periodos: { id: string; 
                 }}>
                     <DialogHeader>
                         <DialogTitle>Nueva liquidación</DialogTitle>
-                        <DialogDescription>El período elegido reemplazará la liquidación activa de la demo.</DialogDescription>
+                        <DialogDescription>Elige el período que quieres revisar.</DialogDescription>
                     </DialogHeader>
                     <Field data-invalid={!!formulario.errors.periodo}>
                         <FieldLabel id="etiqueta-periodo">Período</FieldLabel>
@@ -77,7 +77,7 @@ export function DialogoNuevaLiquidacion({ periodos }: { periodos: { id: string; 
                         </DialogClose>
                         <Button type="submit" disabled={formulario.processing || formulario.data.periodo === null}>
                             {formulario.processing && <Spinner aria-hidden="true" />}
-                            {formulario.processing ? "Generando…" : "Generar liquidación"}
+                            {formulario.processing ? "Abriendo…" : "Abrir período"}
                         </Button>
                     </div>
                 </form>

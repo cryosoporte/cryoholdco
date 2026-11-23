@@ -1,8 +1,11 @@
+import { usePage } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
 import { AccesosModulos } from "@/components/operaciones/accesos-modulos";
-import { modulosReportes } from "@/components/reportes/modulos";
+import { modulosReportesVisibles } from "@/components/reportes/modulos";
 
 export default function Reportes() {
+    const { rutasReportes } = usePage().props;
+
     return (
         <AppLayout title="Reportes">
             <div className="space-y-6">
@@ -12,7 +15,7 @@ export default function Reportes() {
                         Selecciona un módulo para continuar.
                     </p> */}
                 </div>
-                <AccesosModulos modulos={modulosReportes} />
+                <AccesosModulos modulos={modulosReportesVisibles(rutasReportes)} />
             </div>
         </AppLayout>
     );

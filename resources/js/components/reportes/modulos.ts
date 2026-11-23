@@ -9,7 +9,7 @@ export type ModuloReportes = {
     enMenuLateral: boolean;
 };
 
-export const modulosReportes: ModuloReportes[] = [
+const modulosReportes: ModuloReportes[] = [
     {
         titulo: "Comisiones",
         descripcion: "Reporte de comisiones",
@@ -27,3 +27,7 @@ export const modulosReportes: ModuloReportes[] = [
         enMenuLateral: true,
     },
 ];
+
+export function modulosReportesVisibles(rutasReportes: string[]) {
+    return modulosReportes.filter((modulo) => rutasReportes.includes(modulo.ruta));
+}

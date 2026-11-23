@@ -20,40 +20,37 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { formatearFechaHora } from "@/lib/fechas";
 import { DialogoRechazo } from "./dialogo-rechazo";
 import { formatearSoles } from "./formato";
-import type { EventoLiquidacion, Liquidacion, PermisosDemo, RolDemo } from "./tipos";
+import type { EventoLiquidacion, Liquidacion, PermisosLiquidacion } from "./tipos";
 import { useAccionComisiones } from "./use-accion-comisiones";
 
 function ultimoEvento(liquidacion: Liquidacion, tipo: EventoLiquidacion["tipo"]) {
     return [...liquidacion.historial].reverse().find((evento) => evento.tipo === tipo);
 }
 
-export function AccionesLiquidacion({ liquidacion, rol, permisos }: {
+export function AccionesLiquidacion({ liquidacion, permisos }: {
     liquidacion: Liquidacion;
-    rol: RolDemo;
-    permisos: PermisosDemo;
+    permisos: PermisosLiquidacion;
 }) {
-    const { estado, es_demo_activa: activa } = liquidacion;
+    const { estado } = liquidacion;
 
     if (estado === "aprobada" || estado === "enviada_personal") {
         const aprobada = ultimoEvento(liquidacion, "aprobada");
 
         return (
-            <p className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">
-                {aprobada
-                    ? <>Período cerrado, aprobado por <strong>{aprobada.por}</strong> el {formatearFechaHora(aprobada.fecha, " a las ")}.</>
-                    : "Período cerrado y aprobado por gerencia."}{" "}
-                Cualquier corrección se registrará como ajuste.
-            </p>
+            <div className="space-y-3">
+                <p className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+                    {aprobada
+                        ? <>Período cerrado, aprobado por <strong>{aprobada.por}</strong> el {formatearFechaHora(aprobada.fecha, " a las ")}.</>
+                        : "Período cerrado y aprobado por Gerencia."}
+                </p>
+                {permisos.puede_enviar && <DialogoConfirmar liquidacion={liquidacion} accion="enviar" />}
+            </div>
         );
     }
 
-    if (!activa) {
-        return <p className="text-sm text-muted-foreground">Genera una liquidación para este período desde el historial para empezar la revisión.</p>;
-    }
-
     if (estado === "enviada") {
-        if (permisos.puede_aprobar) {
-            return <RevisionGerencia liquidacion={liquidacion} puedeRechazar={permisos.puede_rechazar} />;
+        if (permisos.puede_aprobar || permisos.puede_rechazar) {
+            return <RevisionGerencia liquidacion={liquidacion} puedeAprobar={permisos.puede_aprobar} puedeRechazar={permisos.puede_rechazar} />;
         }
 
         const procesada = ultimoEvento(liquidacion, "procesada");
@@ -74,15 +71,6 @@ export function AccionesLiquidacion({ liquidacion, rol, permisos }: {
 
     if (estado === "rechazada") {
         const rechazo = ultimoEvento(liquidacion, "rechazada");
-
-        if (rol === "gerenta") {
-            return (
-                <p className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">
-                    Devolviste esta liquidación{rechazo && <> el {formatearFechaHora(rechazo.fecha, " a las ")}</>}.
-                    {" "}Esperando que el analista la vuelva a procesar.
-                </p>
-            );
-        }
 
         return (
             <div className="space-y-3">
@@ -109,14 +97,15 @@ export function AccionesLiquidacion({ liquidacion, rol, permisos }: {
                         </p>
                         <DialogoConfirmar liquidacion={liquidacion} accion="procesar" />
                     </>
-                ) : <p>Aún no hay comisiones para aprobar. El analista debe procesar el período.</p>}
+                ) : <p>El período está en borrador. Administración puede procesarlo una vez cerrado.</p>}
             </CardContent>
         </Card>
     );
 }
 
-function RevisionGerencia({ liquidacion, puedeRechazar }: {
+function RevisionGerencia({ liquidacion, puedeAprobar, puedeRechazar }: {
     liquidacion: Liquidacion;
+    puedeAprobar: boolean;
     puedeRechazar: boolean;
 }) {
     return (
@@ -159,20 +148,21 @@ function RevisionGerencia({ liquidacion, puedeRechazar }: {
                     </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <DialogoConfirmar liquidacion={liquidacion} accion="aprobar" />
-                    {puedeRechazar && <DialogoRechazo idLiquidacion={liquidacion.id} />}
+                    {puedeAprobar && <DialogoConfirmar liquidacion={liquidacion} accion="aprobar" />}
+                    {puedeRechazar && <DialogoRechazo idLiquidacion={liquidacion.id} version={liquidacion.liquidacion_id} />}
                 </div>
             </CardContent>
         </Card>
     );
 }
 
-function DialogoConfirmar({ liquidacion, accion }: { liquidacion: Liquidacion; accion: "procesar" | "aprobar" }) {
+function DialogoConfirmar({ liquidacion, accion }: { liquidacion: Liquidacion; accion: "procesar" | "aprobar" | "enviar" }) {
     const [abierto, setAbierto] = useState(false);
-    const formulario = useForm<{ accion?: string }>({});
+    const formulario = useForm<{ liquidacion_id: number | null; accion?: string }>({ liquidacion_id: liquidacion.liquidacion_id });
     const { errorPeticion, opciones } = useAccionComisiones();
     const aprobacion = accion === "aprobar";
-    const titulo = aprobacion ? "Aprobar y enviar al personal" : "Procesar y enviar a Gerencia";
+    const envio = accion === "enviar";
+    const titulo = { aprobar: "Aprobar liquidación", enviar: "Enviar al personal", procesar: "Procesar y enviar a Gerencia" }[accion];
     const total = formatearSoles(liquidacion.total);
 
     return (
@@ -191,7 +181,7 @@ function DialogoConfirmar({ liquidacion, accion }: { liquidacion: Liquidacion; a
                     }
 
                     formulario.post(route(
-                        aprobacion ? "reportes.comisiones.liquidaciones.aprobar" : "reportes.comisiones.liquidaciones.procesar",
+                        `reportes.comisiones.liquidaciones.${accion}`,
                         liquidacion.id,
                     ), {
                         ...opciones,
@@ -201,8 +191,9 @@ function DialogoConfirmar({ liquidacion, accion }: { liquidacion: Liquidacion; a
                     <DialogHeader>
                         <DialogTitle>{titulo}</DialogTitle>
                         <DialogDescription>
-                            {aprobacion
-                                ? <>Se enviarán <strong>{liquidacion.asesores.length} correos</strong> individuales al aprobar el total de <strong>{total}</strong>.</>
+                            {envio
+                                ? <>Se enviarán <strong>{liquidacion.asesores.length} correos</strong> individuales por un total de <strong>{total}</strong>. El envío sigue en segundo plano y puedes ver el avance en esta pantalla.</>
+                                : aprobacion ? <>Se aprobará el total de <strong>{total}</strong>. Administración podrá enviarlo al personal.</>
                                 : <>Se enviará un resumen de <strong>{total}</strong> a <strong>{liquidacion.correo_gerencia}</strong>.</>}
                         </DialogDescription>
                     </DialogHeader>
@@ -213,7 +204,7 @@ function DialogoConfirmar({ liquidacion, accion }: { liquidacion: Liquidacion; a
                         </DialogClose>
                         <Button type="submit" disabled={formulario.processing}>
                             {formulario.processing && <Spinner aria-hidden="true" />}
-                            {formulario.processing ? (aprobacion ? "Enviando correos…" : "Enviando correo…") : titulo}
+                            {formulario.processing ? (envio ? "Iniciando envío…" : aprobacion ? "Aprobando…" : "Enviando correo…") : titulo}
                         </Button>
                     </div>
                 </form>

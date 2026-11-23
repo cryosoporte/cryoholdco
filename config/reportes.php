@@ -47,16 +47,13 @@ return [
     | Comisiones
     |--------------------------------------------------------------------------
     |
-    | "datos" elige qué muestra la pantalla: "reales" calcula con COM_META, la
-    | fuente de facturas y USERS; "ejemplo" usa los datos fijos del prototipo.
-    | En los dos casos el flujo de aprobación vive en la sesión y los correos
-    | solo van a ejemplo.test por Mailtrap.
+    | La pausa antes de cada correo al personal respeta el límite de frecuencia
+    | del sandbox de Mailtrap.
     |
     */
 
-    'comisiones_demo' => [
-        'datos' => env('REPORTES_COMISIONES_DATOS', 'reales'),
-        'pausa_envio_ms' => (int) env('REPORTES_COMISIONES_PAUSA_ENVIO_MS', 1000),
+    'comisiones' => [
+        'pausa_envio_ms' => (int) env('REPORTES_COMISIONES_PAUSA_ENVIO_MS', 11000),
     ],
 
 ];

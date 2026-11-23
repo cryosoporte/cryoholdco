@@ -2,14 +2,21 @@
 
 namespace Tests\Feature\Reportes;
 
+use App\Administracion\RolSistema;
+use App\Reportes\Comisiones\AprobarLiquidacion;
 use App\Reportes\Comisiones\BaseFacturasComisiones;
 use App\Reportes\Comisiones\BonoProntaVenta;
 use App\Reportes\Comisiones\CalcularComisiones;
 use App\Reportes\Comisiones\ComisionCalculada;
+use App\Reportes\Comisiones\EnviarLiquidacionAlPersonal;
 use App\Reportes\Comisiones\PeriodoComision;
+use App\Reportes\Comisiones\ProcesarLiquidacion;
+use App\Reportes\Comisiones\RechazarLiquidacion;
 use App\Reportes\Comisiones\ResultadoComisiones;
 use App\Reportes\Fuentes\FuenteFacturasOracle;
+use Database\Factories\UserFactory;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
@@ -283,6 +290,14 @@ class CalcularComisionesTest extends TestCase
 
     public function test_el_trimestre_descuenta_lo_cobrado_en_los_meses_y_paga_solo_la_diferencia(): void
     {
+        Mail::fake();
+        $this->prepararLiquidaciones();
+        $this->prepararCargasFuentes();
+        $this->travelTo(now()->parse('2027-01-02 10:00', 'America/Lima'));
+        $administrador = UserFactory::new()->make(['id' => 2, 'empresa' => '001']);
+        $gerencia = UserFactory::new()->make(['id' => 156, 'empresa' => '002']);
+        $this->asignarRol(2, RolSistema::Administrador);
+        $this->asignarRol(156, RolSistema::Gerencia);
         $this->app->instance(BonoProntaVenta::class, new BonoProntaVenta(10));
         $this->contratos(15, ['representante_ventas' => 'Rondon Fernandez, Liseth Carolina', 'fecha_emision' => '2026-10-10 00:00:00']);
         $this->contratos(14, ['representante_ventas' => 'Rondon Fernandez, Liseth Carolina', 'fecha_emision' => '2026-11-10 00:00:00']);
@@ -291,6 +306,21 @@ class CalcularComisionesTest extends TestCase
         $this->contratos(16, ['representante_ventas' => 'Cuba Michilot, Claudia Milagros', 'fecha_emision' => '2026-11-10 00:00:00']);
         $this->contratos(15, ['representante_ventas' => 'Cuba Michilot, Claudia Milagros', 'fecha_emision' => '2026-12-10 00:00:00']);
 
+        $procesar = app(ProcesarLiquidacion::class);
+        $aprobar = app(AprobarLiquidacion::class);
+        $mensuales = [];
+        foreach (['2026-10', '2026-11', '2026-12'] as $mes) {
+            $mensual = $procesar->ejecutar($mes, $administrador);
+            $aprobar->ejecutar($mensual->id, $gerencia);
+            $mensuales[$mes] = $mensual->id;
+            if ($mes === '2026-10') {
+                config(['queue.connections.redis_reportes' => ['driver' => 'sync']]);
+                app(EnviarLiquidacionAlPersonal::class)->solicitar($mensual->id, $administrador);
+                DB::table((new FuenteFacturasOracle)->tabla())->where('numero_contrato_oracle', 'PE-CR-1')->delete();
+            }
+        }
+        DB::table('users')->where('id', 26)->update(['rol_netsuite' => null, 'name' => 'Nombre posterior']);
+        DB::table('com_meta_tramo')->where('meta_id', 1)->update(['valor' => 0]);
         $resultado = $this->calcular(PeriodoComision::trimestre(2026, 4));
 
         $rondon = $this->comision($resultado, 26, 5);
@@ -309,6 +339,24 @@ class CalcularComisionesTest extends TestCase
             $resultado->comisiones,
             fn (ComisionCalculada $comision): bool => $comision->resultado->meta->linea === BonoProntaVenta::LINEA,
         ), 'el bono pronta venta no entra en el trimestre');
+
+        $cierre = $procesar->ejecutar('2026-T4', $administrador);
+        app(RechazarLiquidacion::class)->ejecutar($cierre->id, $gerencia, 'Volver a revisar el cierre.');
+        $this->assertSame('RECHAZADA', $cierre->fresh()->estado);
+        $cierre = $procesar->ejecutar('2026-T4', $administrador);
+        $this->assertDatabaseHas('com_liq_detalle', ['liq_id' => $cierre->id, 'user_id' => 26, 'meta_id' => 5,
+            'comision' => 3450, 'adelanto' => 2825, 'pendiente' => 625, 'a_pagar' => 625]);
+        $this->assertDatabaseMissing('com_liq_detalle', ['liq_id' => $cierre->id, 'meta_id' => 0]);
+        $this->assertDatabaseHas('com_liq_contrato', ['liq_id' => $cierre->id, 'user_id' => 26, 'numero_contrato' => 'PE-CR-1']);
+        $this->assertSame($mensuales, $cierre->foto()['base']['liquidaciones_mensuales']);
+        $this->assertEquals(625, $cierre->total);
+        $this->assertEquals(625, DB::table('com_liq_detalle')->where('liq_id', $cierre->id)->sum('a_pagar'));
+        $aprobar->ejecutar($cierre->id, $gerencia);
+        DB::table('com_meta_tramo')->where('meta_id', 5)->update(['valor' => 0]);
+        app(EnviarLiquidacionAlPersonal::class)->solicitar($cierre->id, $administrador);
+        $this->assertSame('ENVIADA', $cierre->fresh()->estado);
+        $this->assertEquals(625, $cierre->fresh()->foto()['total']);
+        $this->assertDatabaseHas('com_liq', ['id' => $mensuales['2026-12'], 'estado' => 'APROBADA']);
     }
 
     public function test_sin_cuota_el_bono_pronta_venta_no_se_calcula(): void

@@ -2,8 +2,12 @@
 
 namespace Tests\Feature\Reportes;
 
-use App\Reportes\Comisiones\DatosComisiones;
+use App\Administracion\RolSistema;
+use App\Mail\ComisionesParaAprobacion;
+use App\Mail\DetalleComisionAsesor;
+use App\Reportes\Comisiones\CalcularComisiones;
 use App\Reportes\Comisiones\DatosRealesComisiones;
+use App\Reportes\Comisiones\PeriodoComision;
 use App\Reportes\Fuentes\FuenteFacturasOracle;
 use Database\Factories\UserFactory;
 use Illuminate\Support\Facades\DB;
@@ -18,10 +22,10 @@ class DatosRealesComisionesTest extends TestCase
     {
         parent::setUp();
         $this->withoutVite();
-        config(['reportes.comisiones_demo.datos' => 'reales']);
         $this->travelTo(now()->parse('2026-11-19 10:00:00', 'America/Lima'));
         $this->prepararFuentes();
         $this->prepararComisiones();
+        $this->prepararLiquidaciones();
 
         DB::table('com_servicio_linea')->insert([
             ['servicio' => 'UCU SANGRE', 'linea_cod' => 'UCU'],
@@ -85,26 +89,54 @@ class DatosRealesComisionesTest extends TestCase
 
     public function test_ofrece_los_meses_desde_octubre_hasta_el_actual_y_su_trimestre(): void
     {
-        $datos = app(DatosComisiones::class);
+        $datos = app(DatosRealesComisiones::class);
 
-        $this->assertInstanceOf(DatosRealesComisiones::class, $datos);
-        $this->assertSame('2026-10', $datos->periodoInicial());
         $this->assertSame([
             ['id' => '2026-10', 'etiqueta' => 'Octubre 2026'],
             ['id' => '2026-11', 'etiqueta' => 'Noviembre 2026'],
             ['id' => '2026-T4', 'etiqueta' => 'Cierre Q4 2026 (trimestral)'],
         ], $datos->periodosDisponibles());
-        $this->assertNull($datos->liquidacion('2026-12', '2026-10'), 'diciembre todavía no empieza');
-        $this->assertNull($datos->liquidacion('2026-09', '2026-10'), 'antes de las metas no hay liquidación');
-        $this->assertNull($datos->liquidacion('octubre', '2026-10'));
+        $this->assertNull($datos->periodo('2026-12'), 'diciembre todavía no empieza');
+        $this->assertNull($datos->periodo('2026-09'), 'antes de las metas no hay liquidación');
+        $this->assertNull($datos->periodo('octubre'));
+    }
+
+    /** @return array<string, mixed> */
+    private function octubre(): array
+    {
+        $resultado = app(CalcularComisiones::class)->calcular(PeriodoComision::mes(2026, 10));
+
+        return app(DatosRealesComisiones::class)->desdeResultado('2026-10', $resultado);
+    }
+
+    public function test_concilia_los_totales_por_cargo_colaborador_y_linea(): void
+    {
+        $detalle = $this->octubre();
+        $asesores = array_column($detalle['asesores'], null, 'id');
+        $this->assertSame($detalle['total'], round(array_sum(array_column($detalle['cargos'], 'total')), 2));
+        $this->assertSame($detalle['colaboradores_con_comision'], array_sum(array_column($detalle['resumen_cargos'], 'con_comision')));
+        $this->assertSame($detalle['colaboradores'], array_sum(array_column($detalle['resumen_cargos'], 'colaboradores')));
+        $this->assertCount(count($asesores), array_unique(array_column($asesores, 'correo')));
+
+        foreach ($detalle['cargos'] as $cargo) {
+            $this->assertSame($cargo['total'], round(array_sum(array_column($cargo['filas'], 'comision')), 2));
+            foreach ($cargo['filas'] as $fila) {
+                $asesor = $asesores[$fila['asesor_id']];
+                $this->assertSame($cargo['codigo'], $asesor['cargo_codigo']);
+                $this->assertSame($fila['nombre'], $asesor['nombre']);
+                $this->assertSame($fila['comision'], $asesor['total']);
+                $this->assertSame($asesor['total'], round(array_sum(array_column($asesor['lineas'], 'comision')), 2));
+                $this->assertStringEndsWith('@ejemplo.test', $asesor['correo']);
+                $this->assertCount(count($cargo['columnas']), $fila['celdas']);
+            }
+        }
     }
 
     public function test_arma_la_liquidacion_por_cargo_con_el_calculo_real(): void
     {
-        $liquidacion = app(DatosComisiones::class)->liquidacion('2026-10', '2026-10');
+        $liquidacion = $this->octubre();
 
         $this->assertSame('Octubre 2026', $liquidacion['periodo']);
-        $this->assertTrue($liquidacion['es_demo_activa']);
         $this->assertSame(['EJEC', 'ANUAL', 'OPE', 'MKT'], array_column($liquidacion['cargos'], 'codigo'));
         $this->assertSame(1125.0, $liquidacion['total'], 'UCU de Rondón');
         $this->assertSame(1, $liquidacion['colaboradores_con_comision']);
@@ -143,7 +175,7 @@ class DatosRealesComisionesTest extends TestCase
 
     public function test_los_puntos_a_revisar_avisan_lo_que_falta_configurar(): void
     {
-        $liquidacion = app(DatosComisiones::class)->liquidacion('2026-10', '2026-10');
+        $liquidacion = $this->octubre();
 
         $this->assertSame([
             '«ADNTRO CRIOCORD, USUARIO» figura en 1 contrato y ningún usuario lo tiene como CODIGO_NETSUITE: no se le asigna comisión.',
@@ -158,23 +190,74 @@ class DatosRealesComisionesTest extends TestCase
 
     public function test_la_pantalla_muestra_la_liquidacion_calculada(): void
     {
+        $this->asignarRol(1, RolSistema::Administrador);
         $this->actingAs(UserFactory::new()->make(['id' => 1, 'name' => 'Ana Operaciones', 'empresa' => '001']));
 
         $this->get(route('reportes.comisiones'))->assertOk()
             ->assertInertia(fn (Assert $pagina): Assert => $pagina->component('comisiones')
                 ->has('periodos_disponibles', 3)
-                ->has('liquidaciones', 1)
+                ->has('liquidaciones', 3)
                 ->where('liquidaciones.0.id', '2026-10')
-                ->where('liquidaciones.0.total', 1125));
+                ->where('liquidaciones.0.total', null));
 
         $this->get(route('reportes.comisiones.liquidaciones.mostrar', '2026-10'))->assertOk()
             ->assertInertia(fn (Assert $pagina): Assert => $pagina->component('comisiones-liquidacion')
                 ->where('liquidacion.estado', 'borrador')
+                ->where('liquidacion.total', 1125)
                 ->where('permisos.puede_procesar', true)
                 ->has('liquidacion.asesores', 5));
 
         $this->get(route('reportes.comisiones.liquidaciones.correo-asesor', ['2026-10', '26']))->assertOk()
             ->assertSee('1,125.00');
         $this->get(route('reportes.comisiones.liquidaciones.mostrar', '2026-12'))->assertNotFound();
+    }
+
+    public function test_el_correo_de_gerencia_incluye_el_resumen_el_enlace_y_la_version_de_texto(): void
+    {
+        $detalle = $this->octubre();
+        $enlace = route('reportes.comisiones.liquidaciones.mostrar', '2026-10');
+
+        $correo = new ComisionesParaAprobacion($detalle, 'Ana <Operaciones>', '2026-11-03T14:15:00+00:00');
+
+        $correo->assertHasSubject('Comisiones Octubre 2026 · pendientes de su aprobación (S/ 1,125.00)')
+            ->assertSeeInHtml('S/ 1,125.00')
+            ->assertSeeInText('S/ 1,125.00 para 1 de 5 colaboradores')
+            ->assertSeeInHtml('Puntos a revisar')
+            ->assertSeeInHtml('href="'.$enlace.'"', false)
+            ->assertSeeInHtml('Ana &lt;Operaciones&gt; el 03-11-2026 a las 09:15', false)
+            ->assertDontSeeInHtml('Ana <Operaciones>', false)
+            ->assertSeeInText('S/ 1,125.00')
+            ->assertSeeInText('Revisar y aprobar en el sistema:')
+            ->assertSeeInText($enlace);
+    }
+
+    public function test_el_correo_del_asesor_incluye_solo_sus_lineas_en_html_y_texto(): void
+    {
+        $asesor = array_column($this->octubre()['asesores'], null, 'id')[26];
+
+        $correo = new DetalleComisionAsesor($asesor, 'Octubre 2026', '2026-11-03T09:15:00-05:00');
+
+        $correo->assertHasSubject('Tu comisión de octubre 2026: S/ 1,125.00')
+            ->assertSeeInHtml('Hola, Liseth:')
+            ->assertSeeInHtml('15–16 × S/ 75')
+            ->assertSeeInHtml('S/ 1,125.00')
+            ->assertDontSeeInHtml('Claudia')
+            ->assertSeeInText('UCU | 15 | 15 | 15–16 × S/ 75 | S/ 1,125.00')
+            ->assertDontSeeInText('Claudia');
+    }
+
+    public function test_el_correo_sin_comision_muestra_la_variante_en_html_y_texto(): void
+    {
+        $asesor = array_column($this->octubre()['asesores'], null, 'id')[207];
+
+        $correo = new DetalleComisionAsesor($asesor, 'Octubre 2026', '2026-11-03T09:15:00-05:00');
+
+        $correo->assertHasSubject('Tu comisión de octubre 2026: S/ 0.00')
+            ->assertSeeInHtml('Este mes no se generó comisión')
+            ->assertSeeInHtml('Te faltaron 5 contratos')
+            ->assertDontSeeInHtml('S/ 1,125.00')
+            ->assertDontSeeInText('S/ 1,125.00')
+            ->assertSeeInText('Este mes no se generó comisión')
+            ->assertSeeInText('Total Octubre 2026: S/ 0.00');
     }
 }

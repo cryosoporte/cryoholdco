@@ -9,10 +9,10 @@ use Illuminate\Support\Facades\Mail;
 use LogicException;
 
 /**
- * @phpstan-import-type Liquidacion from DatosEjemploComisiones
- * @phpstan-import-type Asesor from DatosEjemploComisiones
+ * @phpstan-import-type Liquidacion from DatosRealesComisiones
+ * @phpstan-import-type Asesor from DatosRealesComisiones
  */
-class EnviarComisionesDemo
+class EnviarCorreosComisiones
 {
     /** @param Liquidacion $liquidacion */
     public function gerencia(array $liquidacion, string $persona, string $fecha): void
@@ -28,7 +28,7 @@ class EnviarComisionesDemo
 
     public function pausar(): void
     {
-        $milisegundos = max(0, (int) config('reportes.comisiones_demo.pausa_envio_ms'));
+        $milisegundos = max(0, (int) config('reportes.comisiones.pausa_envio_ms'));
 
         if ($milisegundos > 0) {
             usleep($milisegundos * 1000);
@@ -38,7 +38,7 @@ class EnviarComisionesDemo
     private function enviar(string $destinatario, Mailable $correo): void
     {
         if (! filter_var($destinatario, FILTER_VALIDATE_EMAIL) || ! str_ends_with($destinatario, '@ejemplo.test')) {
-            throw new LogicException('La demo solo admite destinatarios de ejemplo.test.');
+            throw new LogicException('Los correos de comisiones solo admiten destinatarios de ejemplo.test.');
         }
 
         $mailer = config('mail.default');
@@ -50,7 +50,7 @@ class EnviarComisionesDemo
             && in_array($host, ['sandbox.smtp.mailtrap.io', 'smtp.mailtrap.io'], true);
 
         if (! $esSandbox && ! $esPrueba) {
-            throw new LogicException('El mailer por defecto de la demo debe usar Mailtrap Sandbox.');
+            throw new LogicException('El mailer por defecto de comisiones debe usar Mailtrap Sandbox.');
         }
 
         Mail::to($destinatario)->send($correo);

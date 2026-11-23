@@ -13,6 +13,7 @@ final readonly class ResultadoComisiones
      * @param  array<string, int>  $serviciosSinLinea  servicio => filas sin línea en COM_SERVICIO_LINEA
      * @param  int  $filasBase  filas de la fuente que cuentan para comisiones en el período
      * @param  int  $anualidadesSinPeriodo  anualidades del período sin fechas en la nota, que no se evalúan como morosas
+     * @param  array<string, int>  $liquidacionesMensuales  período e ID de cada foto usada en el cierre
      */
     public function __construct(
         public PeriodoComision $periodo,
@@ -21,6 +22,7 @@ final readonly class ResultadoComisiones
         public array $serviciosSinLinea,
         public int $filasBase = 0,
         public int $anualidadesSinPeriodo = 0,
+        public array $liquidacionesMensuales = [],
     ) {}
 
     public function total(): float

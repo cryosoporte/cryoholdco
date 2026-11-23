@@ -10,12 +10,12 @@ use Illuminate\Support\Str;
  * indicadores y puntos a revisar. Tiene la misma forma que los datos de
  * ejemplo.
  *
- * @phpstan-import-type Cargo from DatosEjemploComisiones
- * @phpstan-import-type Asesor from DatosEjemploComisiones
- * @phpstan-import-type Linea from DatosEjemploComisiones
- * @phpstan-import-type Celda from DatosEjemploComisiones
- * @phpstan-import-type Indicador from DatosEjemploComisiones
- * @phpstan-import-type ResumenCargo from DatosEjemploComisiones
+ * @phpstan-import-type Cargo from DatosRealesComisiones
+ * @phpstan-import-type Asesor from DatosRealesComisiones
+ * @phpstan-import-type Linea from DatosRealesComisiones
+ * @phpstan-import-type Celda from DatosRealesComisiones
+ * @phpstan-import-type Indicador from DatosRealesComisiones
+ * @phpstan-import-type ResumenCargo from DatosRealesComisiones
  *
  * @phpstan-type Desglose array{total: float, colaboradores_con_comision: int, colaboradores: int, cargos: list<Cargo>, resumen_cargos: list<ResumenCargo>, asesores: list<Asesor>, indicadores: list<Indicador>, puntos_revision: list<string>}
  */
@@ -397,7 +397,11 @@ class DesgloseComisiones
 
         $sinComision = count(array_filter($asesores, fn (array $asesor): bool => $asesor['total'] <= 0));
 
-        if ($sinComision > 0) {
+        if ($sinComision > 0 && $resultado->liquidacionesMensuales !== []) {
+            $puntos[] = $sinComision === 1
+                ? '1 colaborador no tiene saldo pendiente en el trimestre.'
+                : "{$sinComision} colaboradores no tienen saldo pendiente en el trimestre.";
+        } elseif ($sinComision > 0) {
             $puntos[] = $sinComision === 1
                 ? '1 colaborador no alcanzó la cuota mínima en ninguna línea.'
                 : "{$sinComision} colaboradores no alcanzaron la cuota mínima en ninguna línea.";

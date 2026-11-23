@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use App\Administracion\RolSistema;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\FuenteCarga;
 use App\Reportes\Fuentes\CatalogoFuentes;
@@ -24,6 +25,23 @@ use PDO;
 
 abstract class TestCase extends BaseTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Schema::connection('sqlite')->create('usuario_rol', function (Blueprint $table): void {
+            $table->unsignedInteger('user_id');
+            $table->string('rol', 30);
+            $table->dateTime('fecha_asignacion')->useCurrent();
+            $table->primary(['user_id', 'rol']);
+        });
+    }
+
+    protected function asignarRol(int $usuarioId, RolSistema $rol): void
+    {
+        DB::connection('sqlite')->table('usuario_rol')->insert(['user_id' => $usuarioId, 'rol' => $rol->value]);
+    }
+
     /**
      * Escribe un .xlsx temporal con una fila por elemento de $filas (la primera
      * suele ser la de encabezados) y devuelve su ruta. Las fechas se escriben
@@ -154,6 +172,78 @@ abstract class TestCase extends BaseTestCase
             $table->string('email')->nullable();
             $table->string('codigo_netsuite', 150)->nullable();
             $table->string('rol_netsuite', 60)->nullable();
+        });
+    }
+
+    protected function prepararLiquidaciones(): void
+    {
+        Schema::create('com_liq', function (Blueprint $table): void {
+            $table->id();
+            $table->string('periodo', 7);
+            $table->char('tipo', 1);
+            $table->string('estado', 20);
+            $table->date('fecha_desde');
+            $table->date('fecha_hasta');
+            $table->decimal('total', 14, 2);
+            $table->unsignedInteger('carga_id')->nullable();
+            $table->text('desglose');
+            $table->dateTime('fecha_creacion');
+        });
+        DB::statement("CREATE UNIQUE INDEX com_liq_activa_ux ON com_liq (periodo) WHERE estado <> 'RECHAZADA'");
+
+        Schema::create('com_liq_detalle', function (Blueprint $table): void {
+            $table->foreignId('liq_id')->constrained('com_liq');
+            $table->unsignedInteger('user_id');
+            $table->unsignedInteger('meta_id');
+            $table->string('nombre', 150);
+            $table->string('codigo_netsuite', 150);
+            $table->string('rol_netsuite', 100);
+            $table->string('linea', 30);
+            $table->string('atribucion', 20);
+            $table->string('tipo_meta', 20);
+            $table->string('base_tramo', 20);
+            $table->decimal('minimo', 14, 2);
+            $table->integer('cantidad');
+            $table->decimal('monto', 14, 2);
+            $table->decimal('tramo_desde', 14, 2)->nullable();
+            $table->decimal('tramo_hasta', 14, 2)->nullable();
+            $table->decimal('tramo_valor', 14, 4)->nullable();
+            $table->decimal('comision', 14, 2);
+            $table->decimal('adelanto', 14, 2)->nullable();
+            $table->decimal('pendiente', 14, 2)->nullable();
+            $table->decimal('a_pagar', 14, 2);
+            $table->primary(['liq_id', 'user_id', 'meta_id']);
+        });
+        Schema::create('com_liq_contrato', function (Blueprint $table): void {
+            $table->foreignId('liq_id')->constrained('com_liq');
+            $table->unsignedInteger('user_id');
+            $table->string('linea', 30);
+            $table->string('numero_contrato', 50);
+            $table->string('servicio', 200)->nullable();
+            $table->date('fecha_emision');
+            $table->decimal('monto', 14, 2);
+            $table->integer('filas');
+            $table->index(['liq_id', 'user_id', 'linea']);
+        });
+        Schema::create('com_liq_evento', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('liq_id')->constrained('com_liq');
+            $table->string('accion', 20);
+            $table->unsignedInteger('user_id');
+            $table->string('nombre', 150);
+            $table->string('empresa', 3);
+            $table->string('comentario', 1000)->nullable();
+            $table->dateTime('fecha');
+        });
+        Schema::create('com_liq_envio', function (Blueprint $table): void {
+            $table->foreignId('liq_id')->constrained('com_liq');
+            $table->unsignedInteger('user_id');
+            $table->string('correo', 150);
+            $table->char('estado', 1);
+            $table->integer('intentos')->default(0);
+            $table->dateTime('fecha_envio')->nullable();
+            $table->string('error', 1000)->nullable();
+            $table->primary(['liq_id', 'user_id']);
         });
     }
 

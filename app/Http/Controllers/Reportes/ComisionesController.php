@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Reportes;
 
 use App\Http\Controllers\Controller;
 use App\Models\FuenteDatos;
-use App\Reportes\Comisiones\DatosComisiones;
-use App\Reportes\Comisiones\DemoComisiones;
+use App\Reportes\Comisiones\DatosRealesComisiones;
+use App\Reportes\Comisiones\LiquidacionesComisiones;
 use App\Reportes\Fuentes\FuenteFacturasOracle;
 use Illuminate\Support\Arr;
 use Inertia\Inertia;
@@ -15,12 +15,12 @@ class ComisionesController extends Controller
 {
     private const FUENTE = FuenteFacturasOracle::CODIGO;
 
-    public function index(DemoComisiones $demo, DatosComisiones $datos): Response
+    public function index(LiquidacionesComisiones $liquidaciones, DatosRealesComisiones $datos): Response
     {
         return Inertia::render('comisiones', [
             'fuente' => self::actualizacionFuente(),
-            'liquidaciones' => $demo->liquidaciones(),
-            'rol' => $demo->rol(),
+            'liquidaciones' => $liquidaciones->historial($datos),
+            'puede_elegir_periodo' => request()->user()->can('comisiones.procesar'),
             'periodos_disponibles' => $datos->periodosDisponibles(),
         ]);
     }

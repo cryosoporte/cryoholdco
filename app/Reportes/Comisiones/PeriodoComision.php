@@ -30,6 +30,17 @@ final readonly class PeriodoComision
         return new self($desde, $desde->addMonths(2)->endOfMonth()->startOfDay(), Periodicidad::Trimestral);
     }
 
+    /** @return list<string> meses incluidos en este período, en orden cronológico */
+    public function meses(): array
+    {
+        $meses = [];
+        for ($mes = $this->desde; $mes <= $this->hasta; $mes = $mes->addMonth()) {
+            $meses[] = $mes->format('Y-m');
+        }
+
+        return $meses;
+    }
+
     /**
      * Primer instante después del período, para comparar fechas con hora
      * (fecha_emision < hastaExclusivo).

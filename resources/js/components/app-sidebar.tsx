@@ -11,6 +11,7 @@ import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
 import { modulosAdministracion } from "@/components/administracion/modulos";
 import { modulosOperaciones } from "@/components/operaciones/modulos";
+import { modulosReportesVisibles } from "@/components/reportes/modulos";
 import {
     Sidebar,
     SidebarContent,
@@ -22,7 +23,7 @@ import {
 } from "@/components/ui/sidebar";
 
 export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
-    const { assetUrl, empresa, user } = usePage().props;
+    const { assetUrl, empresa, user, rutasReportes } = usePage().props;
     const enlaces = [
         { title: "Inicio", url: route("home"), icon: <LayoutDashboardIcon /> },
         {
@@ -51,6 +52,12 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
             title: "Reportes",
             url: route("reportes"),
             icon: <ChartBarBig />,
+            items: modulosReportesVisibles(rutasReportes)
+                .filter((modulo) => modulo.enMenuLateral)
+                .map((modulo) => ({
+                    title: modulo.titulo,
+                    url: route(modulo.ruta),
+                })),
         },
     ];
 

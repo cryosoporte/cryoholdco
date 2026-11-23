@@ -2,13 +2,13 @@
 
 namespace App\Mail;
 
-use App\Reportes\Comisiones\DatosEjemploComisiones;
+use App\Reportes\Comisiones\DatosRealesComisiones;
 use Carbon\CarbonImmutable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 
-/** @phpstan-import-type Asesor from DatosEjemploComisiones */
+/** @phpstan-import-type Asesor from DatosRealesComisiones */
 class DetalleComisionAsesor extends Mailable
 {
     /** @param Asesor $asesor */

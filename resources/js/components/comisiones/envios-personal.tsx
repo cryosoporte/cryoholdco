@@ -16,16 +16,19 @@ const estadosEnvio: Record<EnvioAsesor["estado"], { etiqueta: string; clase: str
     fallido: { etiqueta: "Fallido", clase: "border-destructive/30 bg-destructive/10 text-destructive" },
 };
 
-export function EnviosPersonal({ idLiquidacion, envios, puedeReenviar }: {
+export function EnviosPersonal({ idLiquidacion, version, envios, enCurso, puedeReenviar }: {
     idLiquidacion: string;
+    version: number | null;
     envios: EnvioAsesor[];
+    enCurso: boolean;
     puedeReenviar: boolean;
 }) {
-    const formulario = useForm<{ accion?: string }>({});
+    const formulario = useForm<{ liquidacion_id: number | null; accion?: string }>({ liquidacion_id: version });
     const { errorPeticion, opciones } = useAccionComisiones();
+    const atendidos = envios.filter((envio) => envio.estado !== "pendiente").length;
 
     return (
-        <Card aria-busy={formulario.processing}>
+        <Card aria-busy={formulario.processing || enCurso}>
             <CardHeader className="has-data-[slot=card-action]:grid-cols-1 sm:has-data-[slot=card-action]:grid-cols-[1fr_auto]">
                 <CardTitle><h2>Envíos al personal</h2></CardTitle>
                 {puedeReenviar && (
@@ -33,13 +36,19 @@ export function EnviosPersonal({ idLiquidacion, envios, puedeReenviar }: {
                         <Button type="button" variant="outline" disabled={formulario.processing}
                             onClick={() => formulario.post(route("reportes.comisiones.liquidaciones.reenviar", idLiquidacion), opciones)}>
                             {formulario.processing && <Spinner aria-hidden="true" />}
-                            {formulario.processing ? "Reenviando correos…" : "Reenviar fallidos"}
+                            {formulario.processing ? "Iniciando reenvío…" : "Reenviar fallidos"}
                         </Button>
                     </CardAction>
                 )}
             </CardHeader>
             <CardContent className="min-w-0 space-y-3">
                 <FormError message={formulario.errors.accion ?? errorPeticion} />
+                {enCurso && (
+                    <p role="status" className="flex items-center gap-2 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+                        <Spinner aria-hidden="true" />
+                        Enviando correos en segundo plano: {atendidos} de {envios.length}. Esta pantalla se actualiza sola.
+                    </p>
+                )}
                 {envios.length === 0 ? (
                     <p className="text-muted-foreground">Los envíos aún no se han registrado.</p>
                 ) : (

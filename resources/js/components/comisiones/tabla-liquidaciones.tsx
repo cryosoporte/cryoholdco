@@ -35,8 +35,8 @@ export function TablaLiquidaciones({ liquidaciones }: { liquidaciones: ResumenLi
                             </TableCell>
                             <TableCell className="capitalize text-muted-foreground">{liquidacion.tipo_periodo}</TableCell>
                             <TableCell><InsigniaEstado estado={liquidacion.estado} /></TableCell>
-                            <TableCell className="text-right font-semibold tabular-nums">{formatearSoles(liquidacion.total)}</TableCell>
-                            <TableCell className="text-right tabular-nums">{liquidacion.colaboradores_con_comision} de {liquidacion.colaboradores}</TableCell>
+                            <TableCell className="text-right font-semibold tabular-nums">{liquidacion.total === null ? "—" : formatearSoles(liquidacion.total)}</TableCell>
+                            <TableCell className="text-right tabular-nums">{liquidacion.colaboradores === null ? "—" : `${liquidacion.colaboradores_con_comision} de ${liquidacion.colaboradores}`}</TableCell>
                             <TableCell className="text-muted-foreground tabular-nums">{formatearFechaHora(liquidacion.actualizada_en)}</TableCell>
                         </TableRow>
                     ))}

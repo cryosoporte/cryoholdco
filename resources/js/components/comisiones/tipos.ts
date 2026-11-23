@@ -1,4 +1,4 @@
-export type RolDemo = "analista" | "gerenta";
+import type { ActualizacionFuente } from "@/components/reportes/tipos";
 
 export type EstadoLiquidacion =
     | "borrador"
@@ -17,14 +17,14 @@ export type ResumenLiquidacion = {
     desde: string;
     hasta: string;
     estado: EstadoLiquidacion;
-    total: number;
-    colaboradores_con_comision: number;
-    colaboradores: number;
-    actualizada_en: string;
-    es_demo_activa: boolean;
+    total: number | null;
+    colaboradores_con_comision: number | null;
+    colaboradores: number | null;
+    actualizada_en: string | null;
 };
 
 export type BaseLiquidacion = {
+    actualizacion_fuente?: ActualizacionFuente | null;
     fuente: string;
     archivo: string;
     filas: number;
@@ -107,6 +107,11 @@ export type ResumenCargo = {
 };
 
 export type Liquidacion = ResumenLiquidacion & {
+    liquidacion_id: number | null;
+    total: number;
+    colaboradores: number;
+    colaboradores_con_comision: number;
+    actualizada_en: string;
     base: BaseLiquidacion;
     indicadores: Indicador[];
     cargos: Cargo[];
@@ -118,9 +123,10 @@ export type Liquidacion = ResumenLiquidacion & {
     correo_gerencia: string;
 };
 
-export type PermisosDemo = {
+export type PermisosLiquidacion = {
     puede_procesar: boolean;
     puede_aprobar: boolean;
     puede_rechazar: boolean;
+    puede_enviar: boolean;
     puede_reenviar: boolean;
 };

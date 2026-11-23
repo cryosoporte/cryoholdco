@@ -32,28 +32,23 @@ class CalcularComisiones
         private BaseFacturasComisiones $base,
         private AsesoresComisiones $asesores,
         private BonoProntaVenta $bonoProntaVenta,
+        private CierreTrimestral $cierre,
     ) {}
 
     public function calcular(PeriodoComision $periodo): ResultadoComisiones
     {
+        if ($periodo->periodicidad === Periodicidad::Trimestral) {
+            return $this->cierre->calcular($periodo);
+        }
+
         $asesores = $this->asesores->todos();
         $contratos = $this->base->contratos($periodo);
         $metas = $this->metas->vigentes($periodo);
         $morosas = $this->anualidadesMorosas($metas, $periodo);
         $comisiones = $this->evaluarMetas($metas, $contratos, $this->montosNetos($periodo), $morosas, $asesores);
 
-        if ($periodo->periodicidad === Periodicidad::Mensual && $this->bonoProntaVenta->activo()) {
+        if ($this->bonoProntaVenta->activo()) {
             array_push($comisiones, ...$this->bonosProntaVenta($metas, $contratos, $asesores));
-        }
-
-        if ($periodo->periodicidad === Periodicidad::Trimestral) {
-            $adelantos = $this->adelantos($periodo, $asesores);
-            $comisiones = array_map(fn (ComisionCalculada $comision): ComisionCalculada => new ComisionCalculada(
-                $comision->asesor,
-                $comision->resultado,
-                $adelantos[$comision->asesor->id.'|'.$comision->resultado->meta->linea] ?? 0.0,
-                $comision->partes,
-            ), $comisiones);
         }
 
         return new ResultadoComisiones(
@@ -90,8 +85,14 @@ class CalcularComisiones
                     continue;
                 }
 
-                [$cantidad, $monto] = $this->logrado($meta, $asesor, $metas, $contratos, $montosNetos, $asesores);
-                $comisiones[] = new ComisionCalculada($asesor, $meta->evaluar($cantidad, $monto));
+                $personales = [];
+                if ($meta->atribucion->esPersonal()) {
+                    $personales = array_values(array_filter($contratos, fn (ContratoComisionable $contrato): bool => $contrato->linea === $meta->linea && $this->esDe($contrato, $meta->atribucion, $asesor)));
+                    [$cantidad, $monto] = $this->sumar($meta->linea, $personales);
+                } else {
+                    [$cantidad, $monto] = $this->logradoColectivo($meta, $metas, $contratos, $montosNetos, $asesores);
+                }
+                $comisiones[] = new ComisionCalculada($asesor, $meta->evaluar($cantidad, $monto), contratos: $personales);
             }
         }
 
@@ -127,7 +128,7 @@ class CalcularComisiones
                 fn (ContratoComisionable $contrato): bool => BonoProntaVenta::cuenta($contrato) && $this->esDe($contrato, $bono->atribucion, $asesor),
             );
             $monto = round(array_sum(array_map(fn (ContratoComisionable $contrato): float => $contrato->monto, $ventas)), 2);
-            $bonos[] = new ComisionCalculada($asesor, $bono->evaluar((float) count($ventas), $monto));
+            $bonos[] = new ComisionCalculada($asesor, $bono->evaluar((float) count($ventas), $monto), contratos: array_values($ventas));
         }
 
         return $bonos;
@@ -144,6 +145,7 @@ class CalcularComisiones
     private function evaluarPorAntiguedad(MetaComision $meta, AsesorComision $asesor, array $morosas): ComisionCalculada
     {
         $bloques = [];
+        $contratos = [];
         $cantidad = 0;
         $monto = 0.0;
 
@@ -153,6 +155,7 @@ class CalcularComisiones
             }
 
             $cantidad++;
+            $contratos[] = $morosa;
             $monto += $morosa->monto;
             $tramo = $meta->tramoPara($morosa->anios);
 
@@ -173,6 +176,7 @@ class CalcularComisiones
             $asesor,
             new ResultadoMeta($meta, (float) $cantidad, round($monto, 2), null, $comision),
             partes: $partes,
+            contratos: $contratos,
         );
     }
 
@@ -210,15 +214,8 @@ class CalcularComisiones
      * @param  list<AsesorComision>  $asesores
      * @return array{float, float} cantidad y monto
      */
-    private function logrado(MetaComision $meta, AsesorComision $asesor, array $metas, array $contratos, array $montosNetos, array $asesores): array
+    private function logradoColectivo(MetaComision $meta, array $metas, array $contratos, array $montosNetos, array $asesores): array
     {
-        if ($meta->atribucion->esPersonal()) {
-            return $this->sumar($meta->linea, array_filter(
-                $contratos,
-                fn (ContratoComisionable $contrato): bool => $this->esDe($contrato, $meta->atribucion, $asesor),
-            ));
-        }
-
         if ($meta->atribucion === Atribucion::Equipo) {
             return $this->logradoPorEquipo($meta, $metas, $contratos, $asesores);
         }
@@ -311,31 +308,6 @@ class CalcularComisiones
         }
 
         return [(float) $cantidad, round($monto, 2)];
-    }
-
-    /**
-     * Lo cobrado en los meses del trimestre, por colaborador y línea.
-     *
-     * @param  list<AsesorComision>  $asesores
-     * @return array<string, float> "asesorId|linea" => comisión
-     */
-    private function adelantos(PeriodoComision $trimestre, array $asesores): array
-    {
-        $adelantos = [];
-
-        for ($mes = 0; $mes < 3; $mes++) {
-            $inicio = $trimestre->desde->addMonths($mes);
-            $periodo = PeriodoComision::mes($inicio->year, $inicio->month);
-            $metas = $this->metas->vigentes($periodo);
-            $mensuales = $this->evaluarMetas($metas, $this->base->contratos($periodo), $this->montosNetos($periodo), $this->anualidadesMorosas($metas, $periodo), $asesores);
-
-            foreach ($mensuales as $comision) {
-                $clave = $comision->asesor->id.'|'.$comision->resultado->meta->linea;
-                $adelantos[$clave] = round(($adelantos[$clave] ?? 0.0) + $comision->comision(), 2);
-            }
-        }
-
-        return $adelantos;
     }
 
     /**

@@ -132,7 +132,7 @@ class BaseFacturasComisiones
             ->orderBy('f.numero_contrato_oracle')
             ->orderBy('f.servicio')
             ->selectRaw('f.numero_contrato_oracle as contrato, f.servicio as servicio, MAX(f.dueno) as dueno,'
-                .' COUNT(*) as anios, MIN(f.inicio_periodo) as inicio, SUM(f.importe) as monto')
+                .' COUNT(*) as anios, MIN(f.inicio_periodo) as inicio, MIN(f.fecha_emision) as fecha_emision, SUM(f.importe) as monto')
             ->get()
             ->map(fn (object $fila): AnualidadMorosa => new AnualidadMorosa(
                 contrato: $fila->contrato,
@@ -141,6 +141,7 @@ class BaseFacturasComisiones
                 anios: (int) $fila->anios,
                 anioInicioMasAntiguo: (int) substr((string) $fila->inicio, 0, 4),
                 monto: round((float) $fila->monto, 2),
+                fechaEmision: substr((string) $fila->fecha_emision, 0, 10),
             ))
             ->filter(fn (AnualidadMorosa $anualidad): bool => $anualidad->anioInicioMasAntiguo <= $anioLimite)
             ->values()

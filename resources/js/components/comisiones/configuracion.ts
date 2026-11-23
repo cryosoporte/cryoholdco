@@ -4,7 +4,7 @@ export const estados = {
     borrador: {
         etiqueta: "Borrador",
         clase: "border-border bg-muted text-muted-foreground",
-        ayuda: "Pendiente de revisión por el analista.",
+        ayuda: "Pendiente de revisión por Administración.",
     },
     enviada: {
         etiqueta: "Enviada a gerencia",
@@ -19,7 +19,7 @@ export const estados = {
     aprobada: {
         etiqueta: "Aprobada",
         clase: "border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300",
-        ayuda: "Gerencia aprobó el período. Los envíos al personal están en curso.",
+        ayuda: "Gerencia aprobó el período. Administración puede enviar los correos al personal.",
     },
     enviada_personal: {
         etiqueta: "Envíos al personal",

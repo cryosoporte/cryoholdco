@@ -1,7 +1,6 @@
 import { DialogoNuevaLiquidacion } from "@/components/comisiones/dialogo-nueva-liquidacion";
-import { SelectorRol } from "@/components/comisiones/selector-rol";
 import { TablaLiquidaciones } from "@/components/comisiones/tabla-liquidaciones";
-import type { ResumenLiquidacion, RolDemo } from "@/components/comisiones/tipos";
+import type { ResumenLiquidacion } from "@/components/comisiones/tipos";
 import { AvisoActualizacionFuente } from "@/components/reportes/aviso-actualizacion-fuente";
 import type { ActualizacionFuente } from "@/components/reportes/tipos";
 import AppLayout from "@/layouts/app-layout";
@@ -9,12 +8,12 @@ import AppLayout from "@/layouts/app-layout";
 export default function Comisiones({
     fuente,
     liquidaciones,
-    rol,
+    puede_elegir_periodo,
     periodos_disponibles,
 }: {
     fuente: ActualizacionFuente | null;
     liquidaciones: ResumenLiquidacion[];
-    rol: RolDemo;
+    puede_elegir_periodo: boolean;
     periodos_disponibles: { id: string; etiqueta: string }[];
 }) {
     return (
@@ -22,10 +21,7 @@ export default function Comisiones({
             <div className="min-w-0 space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <h1 className="text-2xl font-semibold tracking-tight">Comisiones</h1>
-                    <div className="flex flex-wrap items-start gap-3">
-                        <SelectorRol rol={rol} />
-                        {rol === "analista" && <DialogoNuevaLiquidacion periodos={periodos_disponibles} />}
-                    </div>
+                    {puede_elegir_periodo && <DialogoNuevaLiquidacion periodos={periodos_disponibles} />}
                 </div>
                 <AvisoActualizacionFuente fuente={fuente} />
                 <section className="min-w-0 space-y-3" aria-labelledby="historial-comisiones">

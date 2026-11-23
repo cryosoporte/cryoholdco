@@ -17,9 +17,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useAccionComisiones } from "./use-accion-comisiones";
 
-export function DialogoRechazo({ idLiquidacion }: { idLiquidacion: string }) {
+export function DialogoRechazo({ idLiquidacion, version }: { idLiquidacion: string; version: number | null }) {
     const [abierto, setAbierto] = useState(false);
-    const formulario = useForm<{ comentario: string; accion?: string }>({ comentario: "" });
+    const formulario = useForm<{ comentario: string; liquidacion_id: number | null; accion?: string }>({ comentario: "", liquidacion_id: version });
     const { errorPeticion, opciones } = useAccionComisiones();
 
     function cambiarApertura(siguiente: boolean): void {
@@ -53,7 +53,7 @@ export function DialogoRechazo({ idLiquidacion }: { idLiquidacion: string }) {
                 }}>
                     <DialogHeader>
                         <DialogTitle>Rechazar liquidación</DialogTitle>
-                        <DialogDescription>El analista verá el comentario y podrá volver a procesar el período.</DialogDescription>
+                        <DialogDescription>Administración verá el comentario y podrá volver a procesar el período.</DialogDescription>
                     </DialogHeader>
                     <Field data-invalid={!!formulario.errors.comentario}>
                         <FieldLabel htmlFor="comentario-rechazo">Motivo del rechazo</FieldLabel>

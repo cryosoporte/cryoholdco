@@ -1,5 +1,5 @@
-import { Link, useForm } from "@inertiajs/react";
-import { RotateCcwIcon } from "lucide-react";
+import { useEffect } from "react";
+import { Link, usePoll } from "@inertiajs/react";
 import { route } from "ziggy-js";
 import { AccionesLiquidacion } from "@/components/comisiones/acciones-liquidacion";
 import { BaseLiquidacion } from "@/components/comisiones/base-liquidacion";
@@ -9,28 +9,39 @@ import { IndicadoresLiquidacion } from "@/components/comisiones/indicadores-liqu
 import { InsigniaEstado } from "@/components/comisiones/insignia-estado";
 import { PasosLiquidacion } from "@/components/comisiones/pasos-liquidacion";
 import { PestanasCargos } from "@/components/comisiones/pestanas-cargos";
-import { SelectorRol } from "@/components/comisiones/selector-rol";
-import type { Liquidacion, PermisosDemo, RolDemo } from "@/components/comisiones/tipos";
-import { useAccionComisiones } from "@/components/comisiones/use-accion-comisiones";
-import { FormError } from "@/components/form-error";
+import type { Liquidacion, PermisosLiquidacion } from "@/components/comisiones/tipos";
 import { AvisoActualizacionFuente } from "@/components/reportes/aviso-actualizacion-fuente";
-import type { ActualizacionFuente } from "@/components/reportes/tipos";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AppLayout from "@/layouts/app-layout";
 
-export default function ComisionesLiquidacion({ liquidacion, rol, permisos, fuente }: {
-    liquidacion: Liquidacion;
-    rol: RolDemo;
-    permisos: PermisosDemo;
-    fuente: ActualizacionFuente | null;
+/** Cada cuánto se actualiza la pantalla mientras el worker envía los correos. */
+const INTERVALO_ENVIO_MS = 4000;
+
+export default function ComisionesLiquidacion({ liquidacion, periodo, meses_pendientes, envio_en_curso, permisos }: {
+    liquidacion: Liquidacion | null;
+    periodo: string;
+    meses_pendientes: string[];
+    envio_en_curso: boolean;
+    permisos: PermisosLiquidacion;
 }) {
-    const reinicio = useForm({});
-    const { errorPeticion, opciones } = useAccionComisiones();
+    const titulo = liquidacion?.periodo ?? periodo;
+    // Los formularios guardan la versión al montarse: al cambiar de versión se vuelven a montar.
+    const version = liquidacion?.liquidacion_id ?? "borrador";
+    const { start, stop } = usePoll(INTERVALO_ENVIO_MS, { only: ["liquidacion", "envio_en_curso", "permisos"] }, { autoStart: false });
+
+    useEffect(() => {
+        if (!envio_en_curso) {
+            return;
+        }
+
+        start();
+
+        return stop;
+    }, [envio_en_curso, start, stop]);
 
     return (
-        <AppLayout title={`Comisiones - ${liquidacion.periodo}`}>
+        <AppLayout title={`Comisiones - ${titulo}`}>
             <div className="min-w-0 space-y-6">
                 <Breadcrumb aria-label="Ruta de navegación">
                     <BreadcrumbList>
@@ -38,43 +49,39 @@ export default function ComisionesLiquidacion({ liquidacion, rol, permisos, fuen
                         <BreadcrumbSeparator />
                         <BreadcrumbItem><BreadcrumbLink render={<Link href={route("reportes.comisiones")} />}>Comisiones</BreadcrumbLink></BreadcrumbItem>
                         <BreadcrumbSeparator />
-                        <BreadcrumbItem><BreadcrumbPage>{liquidacion.periodo}</BreadcrumbPage></BreadcrumbItem>
+                        <BreadcrumbItem><BreadcrumbPage>{titulo}</BreadcrumbPage></BreadcrumbItem>
                     </BreadcrumbList>
                 </Breadcrumb>
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="space-y-2">
-                        <h1 className="text-2xl font-semibold tracking-tight">Comisiones · {liquidacion.periodo}</h1>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <InsigniaEstado estado={liquidacion.estado} />
-                            {!liquidacion.es_demo_activa && <span className="text-xs text-muted-foreground">Solo lectura</span>}
-                        </div>
-                    </div>
-                    <div className="flex flex-wrap items-start gap-3">
-                        <SelectorRol rol={rol} />
-                        <Button type="button" variant="outline" disabled={reinicio.processing}
-                            onClick={() => reinicio.post(route("reportes.comisiones.demo.reiniciar"), opciones)}>
-                            {reinicio.processing ? <Spinner aria-hidden="true" /> : <RotateCcwIcon aria-hidden="true" />}
-                            {reinicio.processing ? "Reiniciando…" : "Reiniciar demo"}
-                        </Button>
-                    </div>
-                </div>
-                <FormError message={errorPeticion} />
-                <PasosLiquidacion liquidacion={liquidacion} />
-                <div className="space-y-3">
-                    <BaseLiquidacion base={liquidacion.base} />
-                    <AvisoActualizacionFuente fuente={fuente} />
-                </div>
-                <IndicadoresLiquidacion indicadores={liquidacion.indicadores} />
-                <AccionesLiquidacion liquidacion={liquidacion} rol={rol} permisos={permisos} />
-                <PestanasCargos key={liquidacion.id} liquidacion={liquidacion} />
-                {(liquidacion.estado === "aprobada" || liquidacion.estado === "enviada_personal") && (
-                    <EnviosPersonal
-                        idLiquidacion={liquidacion.id}
-                        envios={liquidacion.envios}
-                        puedeReenviar={permisos.puede_reenviar}
-                    />
+                <h1 className="text-2xl font-semibold tracking-tight">Comisiones · {titulo}</h1>
+                {liquidacion === null ? (
+                    <Alert>
+                        <AlertTitle>Cierre trimestral pendiente</AlertTitle>
+                        <AlertDescription>Falta aprobar los siguientes meses: {meses_pendientes.join(", ")}.</AlertDescription>
+                    </Alert>
+                ) : (
+                    <>
+                        <InsigniaEstado estado={liquidacion.estado} />
+                        <PasosLiquidacion liquidacion={liquidacion} />
+                        <BaseLiquidacion base={liquidacion.base} />
+                        {liquidacion.tipo_periodo === "mensual" && liquidacion.base.actualizacion_fuente !== undefined && (
+                            <AvisoActualizacionFuente fuente={liquidacion.base.actualizacion_fuente} />
+                        )}
+                        <IndicadoresLiquidacion indicadores={liquidacion.indicadores} />
+                        <AccionesLiquidacion key={version} liquidacion={liquidacion} permisos={permisos} />
+                        <PestanasCargos key={liquidacion.id} liquidacion={liquidacion} />
+                        {(liquidacion.estado === "aprobada" || liquidacion.estado === "enviada_personal") && (
+                            <EnviosPersonal
+                                key={version}
+                                idLiquidacion={liquidacion.id}
+                                version={liquidacion.liquidacion_id}
+                                envios={liquidacion.envios}
+                                enCurso={envio_en_curso}
+                                puedeReenviar={permisos.puede_reenviar}
+                            />
+                        )}
+                        <HistorialLiquidacion historial={liquidacion.historial} />
+                    </>
                 )}
-                <HistorialLiquidacion historial={liquidacion.historial} />
             </div>
         </AppLayout>
     );

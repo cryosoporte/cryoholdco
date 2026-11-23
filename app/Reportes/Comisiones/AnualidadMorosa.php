@@ -20,5 +20,6 @@ final readonly class AnualidadMorosa
         public int $anios,
         public int $anioInicioMasAntiguo,
         public float $monto,
+        public string $fechaEmision,
     ) {}
 }
