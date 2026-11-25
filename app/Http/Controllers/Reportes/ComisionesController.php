@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Reportes;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Reportes\FiltrarLiquidacionesRequest;
 use App\Models\FuenteDatos;
 use App\Reportes\Comisiones\DatosRealesComisiones;
 use App\Reportes\Comisiones\LiquidacionesComisiones;
@@ -15,13 +16,15 @@ class ComisionesController extends Controller
 {
     private const FUENTE = FuenteFacturasOracle::CODIGO;
 
-    public function index(LiquidacionesComisiones $liquidaciones, DatosRealesComisiones $datos): Response
+    public function index(FiltrarLiquidacionesRequest $request, LiquidacionesComisiones $liquidaciones, DatosRealesComisiones $datos): Response
     {
+        $anio = $request->anio($datos);
+
         return Inertia::render('comisiones', [
             'fuente' => self::actualizacionFuente(),
-            'liquidaciones' => $liquidaciones->historial($datos),
-            'puede_elegir_periodo' => request()->user()->can('comisiones.procesar'),
-            'periodos_disponibles' => $datos->periodosDisponibles(),
+            'liquidaciones' => $liquidaciones->historial($datos, $anio),
+            'anio' => $anio === null ? FiltrarLiquidacionesRequest::TODOS : (string) $anio,
+            'anios' => array_map('strval', $datos->aniosDisponibles()),
         ]);
     }
 

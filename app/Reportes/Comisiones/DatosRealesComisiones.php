@@ -49,6 +49,23 @@ class DatosRealesComisiones
         return [...$meses, ...array_values($trimestres)];
     }
 
+    /**
+     * Años que tienen al menos un período, del más reciente al más antiguo.
+     *
+     * @return list<int>
+     */
+    public function aniosDisponibles(): array
+    {
+        $primero = (int) substr(AlcanceComisiones::PRIMER_PERIODO, 0, 4);
+
+        return range($this->anioActual(), $primero);
+    }
+
+    public function anioActual(): int
+    {
+        return $this->hoy()->year;
+    }
+
     /** @return Liquidacion */
     public function desdeResultado(string $id, ResultadoComisiones $resultado): array
     {

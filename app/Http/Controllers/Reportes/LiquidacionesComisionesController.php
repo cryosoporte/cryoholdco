@@ -32,11 +32,6 @@ class LiquidacionesComisionesController extends Controller
         return Inertia::render('comisiones-liquidacion', $detalle->mostrar($liquidacion, $request->user()));
     }
 
-    public function nueva(NuevaLiquidacionRequest $request): RedirectResponse
-    {
-        return to_route('reportes.comisiones.liquidaciones.mostrar', $request->validated('periodo'));
-    }
-
     public function procesar(Request $request, string $liquidacion, ProcesarLiquidacion $procesar, DatosRealesComisiones $datos): RedirectResponse
     {
         abort_if($datos->periodo($liquidacion) === null, 404);

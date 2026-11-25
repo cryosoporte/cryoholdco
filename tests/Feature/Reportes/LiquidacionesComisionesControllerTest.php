@@ -89,15 +89,30 @@ class LiquidacionesComisionesControllerTest extends TestCase
             ->where('meses_pendientes', ['2026-10', '2026-11', '2026-12'])->where('permisos.puede_procesar', false));
         $this->accion('procesar', id: '2026-11')->assertSessionHasErrors('accion');
         $this->accion('procesar', id: '2026-T4')->assertSessionHasErrors('accion');
-        $this->post(route('reportes.comisiones.liquidaciones.nueva'), ['periodo' => '2026-10'])
-            ->assertRedirectToRoute('reportes.comisiones.liquidaciones.mostrar', '2026-10');
-        $this->post(route('reportes.comisiones.liquidaciones.nueva'), ['periodo' => '2026-08'])->assertSessionHasErrors('periodo');
         $this->detalle('2040-01')->assertNotFound();
         $this->accion('procesar', id: '2040-01')->assertNotFound();
         $this->detalle('octubre')->assertNotFound();
         $this->get(route('reportes.comisiones.liquidaciones.correo-gerencia', '2040-01'))->assertNotFound();
         $this->get(route('reportes.comisiones.liquidaciones.correo-gerencia', '2026-T4'))->assertNotFound();
         $this->assertDatabaseCount('com_liq', 0);
+    }
+
+    public function test_el_historial_muestra_el_anio_actual_y_todos_solo_si_se_pide(): void
+    {
+        $this->administracion();
+        Mail::fake();
+        $this->accion('procesar')->assertRedirect();
+        $this->travelTo(now()->parse('2027-02-15 09:00:00', 'America/Lima'));
+
+        $this->get(route('reportes.comisiones'))->assertOk()->assertInertia(fn (Assert $p): Assert => $p
+            ->where('anio', '2027')->where('anios', ['2027', '2026'])
+            ->where('liquidaciones', fn ($filas): bool => collect($filas)->pluck('id')->all() === ['2027-01', '2027-02', '2027-T1']));
+        $this->get(route('reportes.comisiones', ['anio' => '2026']))->assertInertia(fn (Assert $p): Assert => $p
+            ->where('anio', '2026')->has('liquidaciones', 4)
+            ->where('liquidaciones.0.id', '2026-10')->where('liquidaciones.0.total', 75));
+        $this->get(route('reportes.comisiones', ['anio' => 'todos']))->assertInertia(fn (Assert $p): Assert => $p
+            ->where('anio', 'todos')->has('liquidaciones', 7));
+        $this->get(route('reportes.comisiones', ['anio' => '2025']))->assertSessionHasErrors('anio');
     }
 
     public function test_las_acciones_exigen_el_rol_antes_de_validar_y_el_estado_correcto(): void
@@ -241,7 +256,6 @@ class LiquidacionesComisionesControllerTest extends TestCase
     {
         $this->get(route('reportes.comisiones'))->assertRedirectToRoute('login');
         $this->detalle()->assertRedirectToRoute('login');
-        $this->post(route('reportes.comisiones.liquidaciones.nueva'), ['periodo' => '2026-10'])->assertRedirectToRoute('login');
 
         foreach (['procesar', 'aprobar', 'rechazar', 'enviar', 'reenviar'] as $accion) {
             $this->accion($accion)->assertRedirectToRoute('login');

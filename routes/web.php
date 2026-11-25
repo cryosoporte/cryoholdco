@@ -103,8 +103,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [ComisionesController::class, 'index'])
             ->name('reportes.comisiones');
         Route::controller(LiquidacionesComisionesController::class)->prefix('/liquidaciones')->name('reportes.comisiones.liquidaciones.')->group(function () {
-            Route::post('/', 'nueva')->name('nueva')->middleware('can:comisiones.procesar')->block(300, 30);
-
             Route::prefix('/{liquidacion}')->where(['liquidacion' => '[0-9]{4}-[0-9]{2}|[0-9]{4}-T[1-4]'])->group(function () {
                 Route::get('/', 'mostrar')->name('mostrar');
                 Route::post('/procesar', 'procesar')->name('procesar')->middleware('can:comisiones.procesar')->block(300, 30);

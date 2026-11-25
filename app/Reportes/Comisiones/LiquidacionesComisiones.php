@@ -65,16 +65,23 @@ class LiquidacionesComisiones
     }
 
     /**
+     * Resumen de los períodos del año pedido; null trae todos los años.
+     *
      * @return list<array{id: string, periodo: string, tipo_periodo: string, desde: string, hasta: string, estado: string, total: ?float, colaboradores: ?int, colaboradores_con_comision: ?int, actualizada_en: ?string}>
      */
-    public function historial(DatosRealesComisiones $datos): array
+    public function historial(DatosRealesComisiones $datos, ?int $anio = null): array
     {
-        $ultimosIds = LiquidacionComision::query()->selectRaw('max(id)')->groupBy('periodo');
+        $opciones = array_values(array_filter(
+            $datos->periodosDisponibles(),
+            fn (array $opcion): bool => $anio === null || str_starts_with($opcion['id'], $anio.'-'),
+        ));
+        $ultimosIds = LiquidacionComision::query()->selectRaw('max(id)')
+            ->whereIn('periodo', array_column($opciones, 'id'))->groupBy('periodo');
         $guardadas = LiquidacionComision::query()->whereIn('id', $ultimosIds)->get()->keyBy('periodo');
         $actualizaciones = EventoLiquidacion::query()->whereIn('liq_id', $ultimosIds)
             ->selectRaw('liq_id, max(fecha) as ultima_fecha')->groupBy('liq_id')->pluck('ultima_fecha', 'liq_id');
         $resumenes = [];
-        foreach ($datos->periodosDisponibles() as $opcion) {
+        foreach ($opciones as $opcion) {
             $id = $opcion['id'];
             $periodo = $datos->periodo($id);
             $fila = $guardadas->get($id);

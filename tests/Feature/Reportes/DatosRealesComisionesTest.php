@@ -194,7 +194,6 @@ class DatosRealesComisionesTest extends TestCase
 
         $this->get(route('reportes.comisiones'))->assertOk()
             ->assertInertia(fn (Assert $pagina): Assert => $pagina->component('comisiones')
-                ->has('periodos_disponibles', 3)
                 ->has('liquidaciones', 3)
                 ->where('liquidaciones.0.id', '2026-10')
                 ->where('liquidaciones.0.total', null));

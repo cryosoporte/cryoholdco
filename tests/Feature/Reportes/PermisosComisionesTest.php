@@ -93,8 +93,7 @@ class PermisosComisionesTest extends TestCase
 
         $this->actingAs($usuario)->get(route('reportes.comisiones'))->assertOk()
             ->assertInertia(fn (Assert $pagina): Assert => $pagina
-                ->where('permisosEfectivos', ['comisiones.ver'])
-                ->where('puede_elegir_periodo', false));
+                ->where('permisosEfectivos', ['comisiones.ver'])->missing('puede_elegir_periodo'));
         $this->post(route('reportes.comisiones.liquidaciones.procesar', '2026-10'))->assertForbidden();
         $this->assertDatabaseCount('com_liq', 0);
     }
