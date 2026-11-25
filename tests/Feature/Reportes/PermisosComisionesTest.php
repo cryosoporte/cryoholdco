@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Reportes;
 
-use App\Administracion\RolSistema;
 use App\Models\UsuarioRol;
 use Database\Factories\UserFactory;
 use Illuminate\Support\Facades\Route;
@@ -36,9 +35,9 @@ class PermisosComisionesTest extends TestCase
         }
     }
 
-    #[TestWith([RolSistema::Administrador])]
-    #[TestWith([RolSistema::Gerencia])]
-    public function test_ambos_roles_pueden_abrir_el_reporte_y_reciben_su_acceso(RolSistema $rol): void
+    #[TestWith(['ADMINISTRADOR'])]
+    #[TestWith(['GERENCIA'])]
+    public function test_ambos_roles_pueden_abrir_el_reporte_y_reciben_su_acceso(string $rol): void
     {
         $this->prepararComisiones();
         $this->prepararFuentes();
@@ -47,16 +46,16 @@ class PermisosComisionesTest extends TestCase
         $this->actingAs(UserFactory::new()->make(['id' => 1]));
 
         $this->get(route('reportes'))->assertOk()->assertInertia(fn (Assert $pagina): Assert => $pagina
-            ->where('roles', [$rol->value])->where('rutasReportes', ['reportes.comisiones', 'reportes.fuentes']));
+            ->where('roles', [$rol])->where('rutasReportes', ['reportes.comisiones', 'reportes.fuentes']));
         $this->get(route('reportes.comisiones'))->assertOk();
         $this->get(route('reportes.comisiones.liquidaciones.mostrar', '2026-10'))->assertOk();
     }
 
     /** @param list<string> $permitidas */
     #[TestWith([null, []])]
-    #[TestWith([RolSistema::Administrador, ['ver', 'procesar', 'enviar']])]
-    #[TestWith([RolSistema::Gerencia, ['ver', 'aprobar', 'rechazar']])]
-    public function test_cada_rol_solo_tiene_los_permisos_de_su_funcion(?RolSistema $rol, array $permitidas): void
+    #[TestWith(['ADMINISTRADOR', ['ver', 'procesar', 'enviar']])]
+    #[TestWith(['GERENCIA', ['ver', 'aprobar', 'rechazar']])]
+    public function test_cada_rol_solo_tiene_los_permisos_de_su_funcion(?string $rol, array $permitidas): void
     {
         $usuario = UserFactory::new()->make(['id' => 1]);
         if ($rol !== null) {
@@ -72,7 +71,7 @@ class PermisosComisionesTest extends TestCase
     {
         $this->prepararFuentes();
         $this->prepararLiquidaciones();
-        $this->asignarRol(2, RolSistema::Administrador);
+        $this->asignarRol(2, 'ADMINISTRADOR');
         $correo = 'administracion@ejemplo.test';
 
         $this->actingAs(UserFactory::new()->make(['id' => 2, 'empresa' => '001', 'email' => $correo]));
@@ -82,6 +81,47 @@ class PermisosComisionesTest extends TestCase
         $this->get(route('reportes.comisiones'))->assertForbidden();
         $this->get(route('reportes'))->assertInertia(fn (Assert $pagina): Assert => $pagina
             ->where('empresa', '002')->where('roles', [])->where('rutasReportes', ['reportes.fuentes']));
+    }
+
+    public function test_un_rol_nuevo_de_consulta_abre_comisiones_pero_recibe_403_al_procesar(): void
+    {
+        $this->prepararFuentes();
+        $this->prepararLiquidaciones();
+        $this->crearRol('CONSULTA', ['comisiones.ver']);
+        $this->asignarRol(1, 'CONSULTA');
+        $usuario = UserFactory::new()->make(['id' => 1]);
+
+        $this->actingAs($usuario)->get(route('reportes.comisiones'))->assertOk()
+            ->assertInertia(fn (Assert $pagina): Assert => $pagina
+                ->where('permisosEfectivos', ['comisiones.ver'])
+                ->where('puede_elegir_periodo', false));
+        $this->post(route('reportes.comisiones.liquidaciones.procesar', '2026-10'))->assertForbidden();
+        $this->assertDatabaseCount('com_liq', 0);
+    }
+
+    public function test_suma_permisos_de_dos_roles_sin_repetir_consultas_ni_codigos(): void
+    {
+        $this->crearRol('CONSULTA', ['comisiones.ver', 'comisiones.procesar']);
+        $this->asignarRol(1, 'CONSULTA');
+        $this->asignarRol(1, 'GERENCIA');
+        $usuario = UserFactory::new()->make(['id' => 1]);
+
+        $this->expectsDatabaseQueryCount(3, 'sqlite');
+        $this->assertTrue($usuario->can('comisiones.procesar'));
+        $this->assertTrue($usuario->can('comisiones.aprobar'));
+        $this->assertFalse($usuario->can('comisiones.enviar'));
+        $this->assertSame(['comisiones.ver', 'comisiones.procesar', 'comisiones.aprobar', 'comisiones.rechazar'], $usuario->codigosPermiso());
+    }
+
+    public function test_ignora_los_permisos_obsoletos_guardados_en_un_rol(): void
+    {
+        $this->crearRol('CONSULTA', ['comisiones.ver', 'administracion.obsoleto']);
+        $this->asignarRol(1, 'CONSULTA');
+        $usuario = UserFactory::new()->make(['id' => 1]);
+
+        $this->assertSame(['comisiones.ver'], $usuario->codigosPermiso());
+        $this->assertFalse($usuario->tienePermiso('administracion.obsoleto'));
+        $this->assertFalse($usuario->can('administracion.ver'));
     }
 
     public function test_la_tabla_de_roles_usa_el_prefijo_configurado(): void

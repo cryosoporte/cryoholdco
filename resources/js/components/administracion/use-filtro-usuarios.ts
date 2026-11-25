@@ -1,27 +1,41 @@
 import { useState } from "react";
-import type { ConteosPorRol, FiltroRolUsuario, PersonaUsuario } from "./tipos";
+import type { PersonaUsuario, RolDisponible } from "./tipos";
 
 function normalizarBusqueda(texto: string): string {
     return texto.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 }
 
-export function useFiltroUsuarios(personas: PersonaUsuario[]) {
+export function useFiltroUsuarios(personas: PersonaUsuario[], rolesDisponibles: RolDisponible[]) {
     const [busqueda, setBusqueda] = useState("");
-    const [filtroRol, setFiltroRol] = useState<FiltroRolUsuario>("todos");
+    const [rolSeleccionado, setFiltroRol] = useState("todos");
     const termino = normalizarBusqueda(busqueda.trim());
-    const conteosPorRol: ConteosPorRol = {
-        todos: personas.length,
-        ADMINISTRADOR: 0,
-        GERENCIA: 0,
-        "sin-rol": 0,
-    };
+    const conteosPorRol = new Map<string, number>();
+    let sinRol = 0;
 
     for (const persona of personas) {
-        conteosPorRol[persona.rol ?? "sin-rol"]++;
+        if (persona.roles.length === 0) {
+            sinRol++;
+        }
+        for (const rol of persona.roles) {
+            conteosPorRol.set(rol, (conteosPorRol.get(rol) ?? 0) + 1);
+        }
     }
 
+    const opcionesRol = [
+        { value: "todos", label: `Todos (${personas.length})` },
+        ...rolesDisponibles.map(({ codigo, nombre }) => ({
+            value: codigo,
+            label: `${nombre} (${conteosPorRol.get(codigo) ?? 0})`,
+        })),
+        { value: "sin-rol", label: `Sin rol (${sinRol})` },
+    ];
+    const filtroRol = opcionesRol.some(({ value }) => value === rolSeleccionado) ? rolSeleccionado : "todos";
+
     const personasVisibles = personas.filter((persona) => {
-        if (filtroRol !== "todos" && filtroRol !== (persona.rol ?? "sin-rol")) {
+        const coincideRol = filtroRol === "todos" ||
+            (filtroRol === "sin-rol" && persona.roles.length === 0) ||
+            persona.roles.includes(filtroRol);
+        if (!coincideRol) {
             return false;
         }
 
@@ -38,7 +52,7 @@ export function useFiltroUsuarios(personas: PersonaUsuario[]) {
         setBusqueda,
         filtroRol,
         setFiltroRol,
-        conteosPorRol,
+        opcionesRol,
         personasVisibles,
     };
 }

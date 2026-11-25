@@ -3,7 +3,6 @@
 namespace Tests\Feature\Administracion;
 
 use App\Administracion\ListadoUsuarios;
-use App\Administracion\RolSistema;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -23,7 +22,7 @@ class UsuariosTest extends TestCase
             '002' => 'soporte@ejemplo.test',
         ]);
         foreach ($soporte as $cuenta) {
-            $this->asignarRol($cuenta->id, RolSistema::Administrador);
+            $this->asignarRol($cuenta->id, 'ADMINISTRADOR');
         }
         $persona = $this->crearPersonaUsuario('Andrea Ejemplo', ' 12345678 ', [
             '001' => 'andrea@empresa-uno.test',
@@ -42,8 +41,8 @@ class UsuariosTest extends TestCase
                     'correos' => ['soporte@ejemplo.test'],
                     'dni' => '001234567',
                     'cuentas' => 2,
-                    'rol' => 'ADMINISTRADOR',
-                    'rol_incompleto' => false,
+                    'roles' => ['ADMINISTRADOR'],
+                    'roles_incompletos' => false,
                     'es_usted' => true,
                 ])
                 ->where('personas.1', [
@@ -52,8 +51,8 @@ class UsuariosTest extends TestCase
                     'correos' => ['andrea@empresa-uno.test', 'andrea@empresa-dos.test'],
                     'dni' => '12345678',
                     'cuentas' => 2,
-                    'rol' => null,
-                    'rol_incompleto' => false,
+                    'roles' => [],
+                    'roles_incompletos' => false,
                     'es_usted' => false,
                 ]));
 
@@ -68,7 +67,7 @@ class UsuariosTest extends TestCase
             '002' => 'área@ejemplo.test',
         ]);
         $sinDni['002']->forceFill(['identificacion' => '   '])->save();
-        $this->asignarRol($sinDni['001']->id, RolSistema::Administrador);
+        $this->asignarRol($sinDni['001']->id, 'ADMINISTRADOR');
         $conDni = $this->crearPersonaUsuario('Otra persona', '87654321', ['001' => 'área@ejemplo.test']);
 
         $this->actingAs($sinDni['001'])->get(route('administracion.usuarios'))
@@ -102,37 +101,62 @@ class UsuariosTest extends TestCase
             '001' => 'parcial@ejemplo.test',
             '002' => 'parcial@ejemplo.test',
         ]);
+        $rolesCoincidentes = $this->crearPersonaUsuario('Gamma Dos roles completos', '77777777', [
+            '001' => 'completo@ejemplo.test',
+            '002' => 'completo@ejemplo.test',
+        ]);
         $this->crearPersonaUsuario('Zeta Sin rol', '55555555', ['001' => 'zeta@ejemplo.test']);
         $this->crearPersonaUsuario('alfa Sin rol', '66666666', ['001' => 'alfa@ejemplo.test']);
 
-        $this->asignarRol($administrador['001']->id, RolSistema::Administrador);
-        $this->asignarRol($gerencia['001']->id, RolSistema::Gerencia);
-        $this->asignarRol($gerencia['002']->id, RolSistema::Gerencia);
-        $this->asignarRol($dosRoles['001']->id, RolSistema::Gerencia);
-        $this->asignarRol($dosRoles['002']->id, RolSistema::Gerencia);
-        $this->asignarRol($dosRoles['002']->id, RolSistema::Administrador);
-        $this->asignarRol($rolParcial['002']->id, RolSistema::Gerencia);
+        $this->asignarRol($administrador['001']->id, 'ADMINISTRADOR');
+        $this->asignarRol($gerencia['001']->id, 'GERENCIA');
+        $this->asignarRol($gerencia['002']->id, 'GERENCIA');
+        $this->asignarRol($dosRoles['001']->id, 'GERENCIA');
+        $this->asignarRol($dosRoles['002']->id, 'GERENCIA');
+        $this->asignarRol($dosRoles['002']->id, 'ADMINISTRADOR');
+        $this->asignarRol($rolParcial['002']->id, 'GERENCIA');
+        $this->asignarRol($rolesCoincidentes['001']->id, 'GERENCIA');
+        $this->asignarRol($rolesCoincidentes['001']->id, 'ADMINISTRADOR');
+        $this->asignarRol($rolesCoincidentes['002']->id, 'ADMINISTRADOR');
+        $this->asignarRol($rolesCoincidentes['002']->id, 'GERENCIA');
 
         $this->expectsDatabaseQueryCount(2, 'sqlite');
         $personas = app(ListadoUsuarios::class)->consultar($administrador['001']);
 
         $this->assertSame([
-            ['Zeta Administrador', 'ADMINISTRADOR', false],
-            ['Zeta Gerencia', 'GERENCIA', false],
-            ['Alfa Rol parcial', 'GERENCIA', true],
-            ['beta Dos roles', 'ADMINISTRADOR', true],
-            ['alfa Sin rol', null, false],
-            ['Zeta Sin rol', null, false],
+            ['beta Dos roles', ['ADMINISTRADOR', 'GERENCIA'], true],
+            ['Gamma Dos roles completos', ['ADMINISTRADOR', 'GERENCIA'], false],
+            ['Zeta Administrador', ['ADMINISTRADOR'], false],
+            ['Alfa Rol parcial', ['GERENCIA'], true],
+            ['Zeta Gerencia', ['GERENCIA'], false],
+            ['alfa Sin rol', [], false],
+            ['Zeta Sin rol', [], false],
         ], $personas->map(fn (array $persona): array => [
             $persona['nombre'],
-            $persona['rol'],
-            $persona['rol_incompleto'],
+            $persona['roles'],
+            $persona['roles_incompletos'],
         ])->all());
     }
 
     public function test_usuarios_redirige_a_login_sin_sesion(): void
     {
         $this->get(route('administracion.usuarios'))->assertRedirectToRoute('login');
-        $this->put(route('administracion.usuarios.rol', 1), ['rol' => null])->assertRedirectToRoute('login');
+        $this->put(route('administracion.usuarios.roles', 1), ['roles' => []])->assertRedirectToRoute('login');
+    }
+
+    public function test_usuarios_recibe_los_roles_disponibles_en_la_base(): void
+    {
+        $this->prepararUsuarios();
+        $this->crearRol('AUDITORIA', ['comisiones.ver']);
+        $usuario = $this->crearPersonaUsuario('Administrador', '12345678', ['001' => 'admin@ejemplo.test'])->first();
+        $this->asignarRol($usuario->id, 'ADMINISTRADOR');
+
+        $this->actingAs($usuario)->get(route('administracion.usuarios'))->assertOk()
+            ->assertInertia(fn (Assert $pagina): Assert => $pagina
+                ->where('rolesDisponibles', [
+                    ['codigo' => 'ADMINISTRADOR', 'nombre' => 'Administrador', 'descripcion' => null],
+                    ['codigo' => 'AUDITORIA', 'nombre' => 'AUDITORIA', 'descripcion' => null],
+                    ['codigo' => 'GERENCIA', 'nombre' => 'Gerencia', 'descripcion' => null],
+                ]));
     }
 }

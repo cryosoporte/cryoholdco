@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Reportes;
 
-use App\Administracion\RolSistema;
 use App\Jobs\EnviarLiquidacionJob;
 use App\Mail\ComisionesParaAprobacion;
 use App\Mail\DetalleComisionAsesor;
@@ -52,8 +51,8 @@ class LiquidacionesComisionesTest extends TestCase
         $this->facturas = (new FuenteFacturasOracle)->tabla();
         $this->administrador = UserFactory::new()->make(['id' => 2, 'name' => 'Administración', 'empresa' => '001']);
         $this->gerencia = UserFactory::new()->make(['id' => 156, 'name' => 'Gerencia', 'empresa' => '002']);
-        $this->asignarRol(2, RolSistema::Administrador);
-        $this->asignarRol(156, RolSistema::Gerencia);
+        $this->asignarRol(2, 'ADMINISTRADOR');
+        $this->asignarRol(156, 'GERENCIA');
         foreach (['Alba', 'Beto'] as $indice => $nombre) {
             DB::table('users')->insert(['id' => 10 + $indice, 'name' => $nombre, 'codigo_netsuite' => $nombre, 'rol_netsuite' => 'EJECUTIVO DE VENTAS']);
         }

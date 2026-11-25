@@ -42,13 +42,19 @@ class HandleInertiaRequests extends Middleware
             'empresa' => $request->user()?->empresa,
             'user' => $request->user()?->only(['name', 'email']),
             'roles' => fn (): array => $request->user() instanceof User
-                ? $request->user()->roles->pluck('rol.value')->all()
+                ? $request->user()->roles->pluck('rol')->all()
+                : [],
+            'permisosEfectivos' => fn (): array => $request->user() instanceof User
+                ? $request->user()->codigosPermiso()
                 : [],
             'rutasAdministracion' => function () use ($request): array {
                 $usuario = $request->user();
 
-                return $usuario instanceof User && $usuario->can('administracion.ver')
-                    ? ['administracion.laboratorios', 'administracion.usuarios']
+                return $usuario instanceof User
+                    ? array_values(array_filter(
+                        ['administracion.laboratorios', 'administracion.usuarios', 'administracion.roles', 'administracion.historial'],
+                        fn (string $ruta): bool => $usuario->can($ruta),
+                    ))
                     : [];
             },
             'rutasReportes' => function () use ($request): array {

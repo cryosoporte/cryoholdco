@@ -16,7 +16,40 @@ export const opcionesEstadoAcceso: { value: EstadoAcceso; label: string }[] = [
     { value: "I", label: "Inactivo" },
 ];
 
-export type RolSistema = "ADMINISTRADOR" | "GERENCIA";
+export type RolDisponible = {
+    codigo: string;
+    nombre: string;
+    descripcion: string | null;
+};
+
+export type RolResumen = RolDisponible & {
+    es_sistema: boolean;
+    personas: number;
+    permisos: number;
+    motivo_no_eliminar: string | null;
+};
+
+export type RolDetalle = Omit<RolResumen, "permisos"> & {
+    permisos: string[];
+    obsoletos: string[];
+};
+
+export type ModuloPermisos = {
+    modulo: string;
+    permisos: {
+        codigo: string;
+        nombre: string;
+        descripcion: string;
+        fijo: boolean;
+        /** Solo lo puede tener el rol Administrador. */
+        exclusivo: boolean;
+    }[];
+};
+
+export type PersonaConRol = {
+    nombre: string;
+    correos: string[];
+};
 
 export type PersonaUsuario = {
     id: number;
@@ -24,29 +57,18 @@ export type PersonaUsuario = {
     correos: string[];
     dni: string;
     cuentas: number;
-    rol: RolSistema | null;
-    rol_incompleto: boolean;
+    roles: string[];
+    roles_incompletos: boolean;
     es_usted: boolean;
 };
 
-export const opcionesRol = {
-    "sin-rol": {
-        value: "sin-rol",
-        label: "Sin rol",
-        descripcion: "Conserva los permisos básicos del sistema.",
-    },
-    ADMINISTRADOR: {
-        value: "ADMINISTRADOR",
-        label: "Administrador",
-        descripcion:
-            "Administra usuarios y laboratorios, procesa y envía liquidaciones de comisiones.",
-    },
-    GERENCIA: {
-        value: "GERENCIA",
-        label: "Gerencia",
-        descripcion: "Aprueba o rechaza liquidaciones de comisiones.",
-    },
-} as const;
-
-export type FiltroRolUsuario = keyof typeof opcionesRol | "todos";
-export type ConteosPorRol = Record<FiltroRolUsuario, number>;
+export type EventoSeguridad = {
+    id: number;
+    fecha: string;
+    autor: string;
+    empresa: string | null;
+    tipo: string;
+    accion: string;
+    referencia: string | null;
+    detalle: { etiqueta: string; valor: string }[];
+};

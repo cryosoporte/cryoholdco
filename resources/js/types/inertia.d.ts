@@ -18,6 +18,7 @@ declare module "@inertiajs/core" {
             empresa: string | null;
             user: UsuarioCompartido | null;
             roles: string[];
+            permisosEfectivos: string[];
             rutasAdministracion: string[];
             rutasReportes: string[];
         };

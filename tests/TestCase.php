@@ -2,7 +2,6 @@
 
 namespace Tests;
 
-use App\Administracion\RolSistema;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\FuenteCarga;
 use App\Models\User;
@@ -32,17 +31,75 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
-        Schema::connection('sqlite')->create('usuario_rol', function (Blueprint $table): void {
+        $esquema = Schema::connection('sqlite');
+
+        $esquema->create('rol', function (Blueprint $table): void {
+            $table->string('codigo', 30)->primary();
+            $table->string('nombre', 60)->unique();
+            $table->string('descripcion', 300)->nullable();
+            $table->enum('es_sistema', ['S', 'N'])->default('N');
+            $table->dateTime('fecha_creacion')->useCurrent();
+        });
+
+        $esquema->create('rol_permiso', function (Blueprint $table): void {
+            $table->string('rol', 30);
+            $table->string('permiso', 60);
+            $table->primary(['rol', 'permiso']);
+            $table->foreign('rol')->references('codigo')->on('rol');
+        });
+
+        $esquema->create('usuario_rol', function (Blueprint $table): void {
             $table->unsignedInteger('user_id');
             $table->string('rol', 30);
             $table->dateTime('fecha_asignacion')->useCurrent();
             $table->primary(['user_id', 'rol']);
+            $table->foreign('rol')->references('codigo')->on('rol');
         });
+
+        $esquema->create('seguridad_evento', function (Blueprint $table): void {
+            $table->increments('id');
+            $table->enum('accion', ['ROL_CREADO', 'ROL_EDITADO', 'ROL_ELIMINADO', 'PERMISOS_ROL', 'ROLES_USUARIO']);
+            $table->string('rol', 30)->nullable();
+            $table->string('usuarios', 200)->nullable();
+            $table->string('detalle', 4000)->nullable();
+            $table->unsignedInteger('autor_id');
+            $table->string('autor_nombre', 255);
+            $table->string('autor_empresa', 20)->nullable();
+            $table->dateTime('fecha')->index();
+        });
+
+        $conexion = DB::connection('sqlite');
+        $conexion->table('rol')->insert([
+            ['codigo' => 'ADMINISTRADOR', 'nombre' => 'Administrador', 'es_sistema' => 'S'],
+            ['codigo' => 'GERENCIA', 'nombre' => 'Gerencia', 'es_sistema' => 'N'],
+        ]);
+        $conexion->table('rol_permiso')->insert([
+            ['rol' => 'ADMINISTRADOR', 'permiso' => 'administracion.laboratorios'],
+            ['rol' => 'ADMINISTRADOR', 'permiso' => 'administracion.usuarios'],
+            ['rol' => 'ADMINISTRADOR', 'permiso' => 'administracion.roles'],
+            ['rol' => 'ADMINISTRADOR', 'permiso' => 'comisiones.ver'],
+            ['rol' => 'ADMINISTRADOR', 'permiso' => 'comisiones.procesar'],
+            ['rol' => 'ADMINISTRADOR', 'permiso' => 'comisiones.enviar'],
+            ['rol' => 'GERENCIA', 'permiso' => 'comisiones.ver'],
+            ['rol' => 'GERENCIA', 'permiso' => 'comisiones.aprobar'],
+            ['rol' => 'GERENCIA', 'permiso' => 'comisiones.rechazar'],
+        ]);
     }
 
-    protected function asignarRol(int $usuarioId, RolSistema $rol): void
+    protected function asignarRol(int $usuarioId, string $rol): void
     {
-        DB::connection('sqlite')->table('usuario_rol')->insert(['user_id' => $usuarioId, 'rol' => $rol->value]);
+        DB::connection('sqlite')->table('usuario_rol')->insert(['user_id' => $usuarioId, 'rol' => $rol]);
+    }
+
+    /** @param list<string> $permisos */
+    protected function crearRol(string $codigo, array $permisos): void
+    {
+        $conexion = DB::connection('sqlite');
+        $conexion->table('rol')->insert(['codigo' => $codigo, 'nombre' => $codigo]);
+        $conexion->table('rol_permiso')->insert(array_map(
+            fn (string $permiso): array => ['rol' => $codigo, 'permiso' => $permiso],
+            $permisos,
+        ));
     }
 
     protected function prepararUsuarios(): void
@@ -202,6 +259,8 @@ abstract class TestCase extends BaseTestCase
             $table->id();
             $table->string('name');
             $table->string('email')->nullable();
+            $table->string('identificacion')->nullable();
+            $table->string('empresa', 3)->nullable();
             $table->string('codigo_netsuite', 150)->nullable();
             $table->string('rol_netsuite', 60)->nullable();
         });

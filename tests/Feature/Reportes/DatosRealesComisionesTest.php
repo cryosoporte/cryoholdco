@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Reportes;
 
-use App\Administracion\RolSistema;
 use App\Mail\ComisionesParaAprobacion;
 use App\Mail\DetalleComisionAsesor;
 use App\Reportes\Comisiones\CalcularComisiones;
@@ -190,7 +189,7 @@ class DatosRealesComisionesTest extends TestCase
 
     public function test_la_pantalla_muestra_la_liquidacion_calculada(): void
     {
-        $this->asignarRol(1, RolSistema::Administrador);
+        $this->asignarRol(1, 'ADMINISTRADOR');
         $this->actingAs(UserFactory::new()->make(['id' => 1, 'name' => 'Ana Operaciones', 'empresa' => '001']));
 
         $this->get(route('reportes.comisiones'))->assertOk()

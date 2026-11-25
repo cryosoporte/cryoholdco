@@ -19,7 +19,7 @@ class DetalleLiquidacion
         private CierreTrimestral $cierre,
     ) {}
 
-    /** @return array{liquidacion: ?array, periodo: string, meses_pendientes: list<string>, envio_en_curso: bool, permisos: array<string, bool>} */
+    /** @return array{liquidacion: ?array, periodo: string, meses_pendientes: list<string>, envio_en_curso: bool, aviso_separacion: ?string, permisos: array<string, bool>} */
     public function mostrar(string $id, User $usuario): array
     {
         $periodo = $this->datos->periodo($id) ?? abort(404);
@@ -40,6 +40,9 @@ class DetalleLiquidacion
         }
 
         $procesada = $activa?->estado === LiquidacionComision::PROCESADA;
+        $puedeAprobar = $procesada && $usuario->can('comisiones.aprobar');
+        $puedeRechazar = $procesada && $usuario->can('comisiones.rechazar');
+        $esProcesador = ($puedeAprobar || $puedeRechazar) && $this->liquidaciones->fueProcesadaPor($activa->id, $usuario);
         $cerrado = $periodo->hasta->toDateString() < FuenteCarga::ahora()->toDateString();
         $estadosEnvio = array_column($detalle['envios'] ?? [], 'estado');
         $enCurso = in_array('pendiente', $estadosEnvio, true);
@@ -49,10 +52,11 @@ class DetalleLiquidacion
             'periodo' => $id,
             'meses_pendientes' => $pendientes,
             'envio_en_curso' => $enCurso,
+            'aviso_separacion' => $esProcesador ? 'No puedes aprobar ni rechazar una liquidación que procesaste.' : null,
             'permisos' => [
                 'puede_procesar' => ! $activa && $cerrado && $pendientes === [] && $usuario->can('comisiones.procesar'),
-                'puede_aprobar' => $procesada && $usuario->can('comisiones.aprobar'),
-                'puede_rechazar' => $procesada && $usuario->can('comisiones.rechazar'),
+                'puede_aprobar' => $puedeAprobar && ! $esProcesador,
+                'puede_rechazar' => $puedeRechazar && ! $esProcesador,
                 'puede_enviar' => $activa?->estado === LiquidacionComision::APROBADA && $estadosEnvio === []
                     && $usuario->can('comisiones.enviar'),
                 'puede_reenviar' => $activa?->estado === LiquidacionComision::ENVIADA && ! $enCurso

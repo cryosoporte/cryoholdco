@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Administracion\AccesoLaboratorioController;
+use App\Http\Controllers\Administracion\HistorialSeguridadController;
+use App\Http\Controllers\Administracion\RolController;
 use App\Http\Controllers\Administracion\UsuarioController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LoginLaboratorioController;
@@ -51,26 +53,45 @@ Route::middleware('auth')->group(function () {
     Route::post('/serologia/recordatorio', [SerologiaController::class, 'enviarRecordatorio'])->name('serologia.recordatorio');
 
     // administración
-    Route::middleware('can:administracion.ver')->group(function () {
-        $autorizarModeloFaltante = function (Request $request, ModelNotFoundException $exception): never {
-            Gate::authorize('administracion.ver');
+    $autorizarModeloFaltante = fn (string $permiso): Closure => function (Request $request, ModelNotFoundException $exception) use ($permiso): never {
+        Gate::authorize($permiso);
 
-            throw $exception;
-        };
+        throw $exception;
+    };
 
-        Route::inertia('/administracion', 'administracion')->name('administracion');
+    Route::inertia('/administracion', 'administracion')->name('administracion')->middleware('can:administracion.ver');
+    Route::middleware('can:administracion.laboratorios')->group(function () use ($autorizarModeloFaltante) {
         Route::get('/administracion/laboratorios', [AccesoLaboratorioController::class, 'index'])->name('administracion.laboratorios');
         Route::post('/administracion/laboratorios', [AccesoLaboratorioController::class, 'crear'])->name('administracion.laboratorios.crear');
         Route::put('/administracion/laboratorios/{acceso}', [AccesoLaboratorioController::class, 'actualizar'])
             ->name('administracion.laboratorios.actualizar')
-            ->missing($autorizarModeloFaltante);
+            ->missing($autorizarModeloFaltante('administracion.laboratorios'));
+    });
+    Route::middleware('can:administracion.usuarios')->group(function () use ($autorizarModeloFaltante) {
         Route::get('/administracion/usuarios', [UsuarioController::class, 'index'])->name('administracion.usuarios');
-        Route::put('/administracion/usuarios/{usuario}', [UsuarioController::class, 'asignarRol'])
-            ->name('administracion.usuarios.rol')
+        Route::put('/administracion/usuarios/{usuario}', [UsuarioController::class, 'asignarRoles'])
+            ->name('administracion.usuarios.roles')
             ->whereNumber('usuario')
             ->block(10, 10)
-            ->missing($autorizarModeloFaltante);
+            ->missing($autorizarModeloFaltante('administracion.usuarios'));
     });
+
+    Route::middleware('can:administracion.roles')->prefix('/administracion/roles')->controller(RolController::class)->group(function () use ($autorizarModeloFaltante) {
+        Route::get('/', 'index')->name('administracion.roles');
+        Route::post('/', 'crear')->name('administracion.roles.crear')->block(10, 10);
+
+        $rolFaltante = $autorizarModeloFaltante('administracion.roles');
+        Route::prefix('/{rol}')->where(['rol' => '[A-Z0-9_]+'])->name('administracion.roles.')->group(function () use ($rolFaltante) {
+            Route::get('/', 'mostrar')->name('mostrar')->missing($rolFaltante);
+            Route::put('/', 'actualizar')->name('actualizar')->block(10, 10)->missing($rolFaltante);
+            Route::put('/permisos', 'permisos')->name('permisos')->block(10, 10)->missing($rolFaltante);
+            Route::delete('/', 'eliminar')->name('eliminar')->block(10, 10)->missing($rolFaltante);
+        });
+    });
+
+    Route::get('/administracion/historial', [HistorialSeguridadController::class, 'index'])
+        ->name('administracion.historial')
+        ->middleware('can:administracion.historial');
 
     // reportes
     Route::inertia('/reportes', 'reportes')->name('reportes');

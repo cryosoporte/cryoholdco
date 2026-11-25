@@ -18,17 +18,18 @@ import AppLayout from "@/layouts/app-layout";
 /** Cada cuánto se actualiza la pantalla mientras el worker envía los correos. */
 const INTERVALO_ENVIO_MS = 4000;
 
-export default function ComisionesLiquidacion({ liquidacion, periodo, meses_pendientes, envio_en_curso, permisos }: {
+export default function ComisionesLiquidacion({ liquidacion, periodo, meses_pendientes, envio_en_curso, permisos, aviso_separacion }: {
     liquidacion: Liquidacion | null;
     periodo: string;
     meses_pendientes: string[];
     envio_en_curso: boolean;
     permisos: PermisosLiquidacion;
+    aviso_separacion: string | null;
 }) {
     const titulo = liquidacion?.periodo ?? periodo;
     // Los formularios guardan la versión al montarse: al cambiar de versión se vuelven a montar.
     const version = liquidacion?.liquidacion_id ?? "borrador";
-    const { start, stop } = usePoll(INTERVALO_ENVIO_MS, { only: ["liquidacion", "envio_en_curso", "permisos"] }, { autoStart: false });
+    const { start, stop } = usePoll(INTERVALO_ENVIO_MS, { only: ["liquidacion", "envio_en_curso", "permisos", "aviso_separacion"] }, { autoStart: false });
 
     useEffect(() => {
         if (!envio_en_curso) {
@@ -67,6 +68,11 @@ export default function ComisionesLiquidacion({ liquidacion, periodo, meses_pend
                             <AvisoActualizacionFuente fuente={liquidacion.base.actualizacion_fuente} />
                         )}
                         <IndicadoresLiquidacion indicadores={liquidacion.indicadores} />
+                        {aviso_separacion && (
+                            <Alert>
+                                <AlertDescription>{aviso_separacion}</AlertDescription>
+                            </Alert>
+                        )}
                         <AccionesLiquidacion key={version} liquidacion={liquidacion} permisos={permisos} />
                         <PestanasCargos key={liquidacion.id} liquidacion={liquidacion} />
                         {(liquidacion.estado === "aprobada" || liquidacion.estado === "enviada_personal") && (

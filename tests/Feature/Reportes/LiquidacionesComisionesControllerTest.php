@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Reportes;
 
-use App\Administracion\RolSistema;
 use App\Mail\ComisionesParaAprobacion;
 use App\Mail\DetalleComisionAsesor;
 use App\Models\LiquidacionComision;
@@ -33,8 +32,8 @@ class LiquidacionesComisionesControllerTest extends TestCase
         $this->prepararCargasFuentes();
         $this->prepararComisiones();
         $this->prepararLiquidaciones();
-        $this->asignarRol(1, RolSistema::Administrador);
-        $this->asignarRol(2, RolSistema::Gerencia);
+        $this->asignarRol(1, 'ADMINISTRADOR');
+        $this->asignarRol(2, 'GERENCIA');
         foreach (['Alba', 'Beto'] as $i => $nombre) {
             DB::table('users')->insert(['id' => 10 + $i, 'name' => $nombre, 'codigo_netsuite' => $nombre, 'rol_netsuite' => 'EJECUTIVO DE VENTAS']);
         }
@@ -146,6 +145,43 @@ class LiquidacionesComisionesControllerTest extends TestCase
         $this->accion('reenviar')->assertSessionHasErrors('accion');
         $this->detalle()->assertInertia(fn (Assert $p): Assert => $p->where('liquidacion.estado', 'enviada_personal')
             ->has('liquidacion.envios', 2)->where('liquidacion.historial.4.tipo', 'enviada_personal'));
+    }
+
+    public function test_quien_procesa_no_puede_aprobar_ni_rechazar_desde_ninguna_de_sus_cuentas(): void
+    {
+        Mail::fake();
+        $this->crearRol('GESTION_COMISIONES', ['comisiones.ver', 'comisiones.procesar', 'comisiones.aprobar', 'comisiones.rechazar']);
+        $cuentas = [
+            UserFactory::new()->make(['id' => 3, 'identificacion' => '12345678', 'empresa' => '001']),
+            UserFactory::new()->make(['id' => 4, 'identificacion' => ' 12345678 ', 'empresa' => '002']),
+        ];
+        foreach ($cuentas as $cuenta) {
+            DB::table('users')->insert($cuenta->only(['id', 'name', 'email', 'identificacion', 'empresa']));
+            $this->asignarRol($cuenta->id, 'GESTION_COMISIONES');
+        }
+        $this->actingAs($cuentas[0]);
+        $this->accion('procesar')->assertSessionHasNoErrors();
+
+        foreach ($cuentas as $cuenta) {
+            $this->actingAs($cuenta);
+            $this->detalle()->assertOk()->assertInertia(fn (Assert $p): Assert => $p
+                ->where('permisos.puede_aprobar', false)
+                ->where('permisos.puede_rechazar', false)
+                ->where('aviso_separacion', 'No puedes aprobar ni rechazar una liquidación que procesaste.'));
+            $this->accion('aprobar')->assertSessionHasErrors(['accion' => 'No puedes aprobar una liquidación que procesaste.']);
+            $this->accion('rechazar', ['comentario' => 'Verificar el detalle.'])
+                ->assertSessionHasErrors(['accion' => 'No puedes rechazar una liquidación que procesaste.']);
+        }
+        $this->assertDatabaseHas('com_liq', ['periodo' => '2026-10', 'estado' => 'PROCESADA']);
+        $this->assertDatabaseCount('com_liq_evento', 1);
+
+        $this->gerencia();
+        $this->detalle()->assertInertia(fn (Assert $p): Assert => $p
+            ->where('permisos.puede_aprobar', true)
+            ->where('permisos.puede_rechazar', true)
+            ->where('aviso_separacion', null));
+        $this->accion('aprobar')->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('com_liq', ['periodo' => '2026-10', 'estado' => 'APROBADA']);
     }
 
     public function test_detalle_historial_y_vistas_previas_leen_la_foto_y_solo_muestran_al_destinatario_del_correo(): void

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Administracion;
 
-use App\Administracion\RolSistema;
 use App\Models\User;
 use App\Models\UsuarioLaboratorio;
 use Database\Factories\UserFactory;
@@ -22,7 +21,7 @@ class AccesoLaboratorioTest extends TestCase
 
     private function administrador(): User
     {
-        $this->asignarRol(1, RolSistema::Administrador);
+        $this->asignarRol(1, 'ADMINISTRADOR');
 
         return UserFactory::new()->make(['id' => 1, 'empresa' => '001']);
     }

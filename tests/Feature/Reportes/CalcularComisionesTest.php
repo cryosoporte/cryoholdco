@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Reportes;
 
-use App\Administracion\RolSistema;
 use App\Reportes\Comisiones\AprobarLiquidacion;
 use App\Reportes\Comisiones\BaseFacturasComisiones;
 use App\Reportes\Comisiones\BonoProntaVenta;
@@ -296,8 +295,8 @@ class CalcularComisionesTest extends TestCase
         $this->travelTo(now()->parse('2027-01-02 10:00', 'America/Lima'));
         $administrador = UserFactory::new()->make(['id' => 2, 'empresa' => '001']);
         $gerencia = UserFactory::new()->make(['id' => 156, 'empresa' => '002']);
-        $this->asignarRol(2, RolSistema::Administrador);
-        $this->asignarRol(156, RolSistema::Gerencia);
+        $this->asignarRol(2, 'ADMINISTRADOR');
+        $this->asignarRol(156, 'GERENCIA');
         $this->app->instance(BonoProntaVenta::class, new BonoProntaVenta(10));
         $this->contratos(15, ['representante_ventas' => 'Rondon Fernandez, Liseth Carolina', 'fecha_emision' => '2026-10-10 00:00:00']);
         $this->contratos(14, ['representante_ventas' => 'Rondon Fernandez, Liseth Carolina', 'fecha_emision' => '2026-11-10 00:00:00']);

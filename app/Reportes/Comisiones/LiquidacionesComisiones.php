@@ -5,6 +5,7 @@ namespace App\Reportes\Comisiones;
 use App\Models\EnvioLiquidacion;
 use App\Models\EventoLiquidacion;
 use App\Models\LiquidacionComision;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -26,6 +27,27 @@ class LiquidacionesComisiones
     public function eventos(int $id): Collection
     {
         return EventoLiquidacion::query()->where('liq_id', $id)->orderBy('id')->get();
+    }
+
+    public function fueProcesadaPor(int $id, User $usuario): bool
+    {
+        $autorId = EventoLiquidacion::query()
+            ->where('liq_id', $id)
+            ->where('accion', 'PROCESO')
+            ->latest('id')
+            ->value('user_id');
+
+        if ($autorId === null) {
+            return false;
+        }
+
+        if ((string) $autorId === (string) $usuario->getKey()) {
+            return true;
+        }
+
+        $autor = User::query()->find($autorId, ['id', 'identificacion', 'email']);
+
+        return $autor?->clavePersona() === $usuario->clavePersona();
     }
 
     /** @return Collection<int, EnvioLiquidacion> */

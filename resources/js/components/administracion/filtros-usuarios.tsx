@@ -6,22 +6,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { opcionesRol, type ConteosPorRol, type FiltroRolUsuario } from "./tipos";
-
-const filtrosRol = [
-    { value: "todos", label: "Todos" },
-    opcionesRol.ADMINISTRADOR,
-    opcionesRol.GERENCIA,
-    opcionesRol["sin-rol"],
-] as const;
-
 type FiltrosUsuariosProps = {
     busqueda: string;
     onCambiarBusqueda: (busqueda: string) => void;
-    filtroRol: FiltroRolUsuario;
-    onCambiarRol: (rol: FiltroRolUsuario) => void;
-    conteosPorRol: ConteosPorRol;
+    filtroRol: string;
+    onCambiarRol: (rol: string) => void;
+    opcionesRol: { value: string; label: string }[];
     totalVisible: number;
+    totalPersonas: number;
 };
 
 export function FiltrosUsuarios({
@@ -29,14 +21,10 @@ export function FiltrosUsuarios({
     onCambiarBusqueda,
     filtroRol,
     onCambiarRol,
-    conteosPorRol,
+    opcionesRol,
     totalVisible,
+    totalPersonas,
 }: FiltrosUsuariosProps) {
-    const opciones = filtrosRol.map(({ value, label }) => ({
-        value,
-        label: `${label} (${conteosPorRol[value]})`,
-    }));
-
     return (
         <div className="space-y-2">
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -49,7 +37,7 @@ export function FiltrosUsuarios({
                     onChange={(evento) => onCambiarBusqueda(evento.target.value)}
                 />
                 <Select
-                    items={opciones}
+                    items={opcionesRol}
                     value={filtroRol}
                     onValueChange={(rol) => {
                         if (rol !== null) {
@@ -64,7 +52,7 @@ export function FiltrosUsuarios({
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        {opciones.map(({ value, label }) => (
+                        {opcionesRol.map(({ value, label }) => (
                             <SelectItem key={value} value={value}>
                                 {label}
                             </SelectItem>
@@ -73,7 +61,7 @@ export function FiltrosUsuarios({
                 </Select>
             </div>
             <p role="status" className="text-sm text-muted-foreground">
-                Mostrando {totalVisible} de {conteosPorRol.todos} personas
+                Mostrando {totalVisible} de {totalPersonas} personas
             </p>
         </div>
     );

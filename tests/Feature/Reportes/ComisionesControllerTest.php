@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Reportes;
 
-use App\Administracion\RolSistema;
 use App\Reportes\Fuentes\FuenteFacturasOracle;
 use Database\Factories\UserFactory;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +16,7 @@ class ComisionesControllerTest extends TestCase
         $this->withoutVite();
         $this->prepararFuentes();
         $this->prepararLiquidaciones();
-        $this->asignarRol(1, RolSistema::Administrador);
+        $this->asignarRol(1, 'ADMINISTRADOR');
         $this->actingAs(UserFactory::new()->make(['id' => 1, 'empresa' => '001']));
     }
 

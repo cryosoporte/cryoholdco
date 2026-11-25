@@ -9,13 +9,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { opcionesRol, type PersonaUsuario } from "./tipos";
-
-const variantesRol = {
-    ADMINISTRADOR: "default",
-    GERENCIA: "secondary",
-    "sin-rol": "outline",
-} as const;
+import type { PersonaUsuario, RolDisponible } from "./tipos";
 
 function AccionRolUsuario({
     persona,
@@ -24,11 +18,12 @@ function AccionRolUsuario({
     persona: PersonaUsuario;
     onSeleccionar: (persona: PersonaUsuario) => void;
 }) {
-    const accion = persona.rol === null ? "Asignar rol" : "Cambiar rol";
+    const sinRol = persona.roles.length === 0;
+    const accion = sinRol ? "Asignar roles" : "Cambiar roles";
     const boton = (
         <Button
             type="button"
-            variant={persona.rol === null ? "default" : "outline"}
+            variant={sinRol ? "default" : "outline"}
             aria-label={`${accion} de ${persona.nombre}`}
             disabled={persona.es_usted}
             focusableWhenDisabled={persona.es_usted}
@@ -46,63 +41,67 @@ function AccionRolUsuario({
     return persona.es_usted ? (
         <Tooltip>
             <TooltipTrigger render={boton} />
-            <TooltipContent>No puedes cambiar tu propio rol.</TooltipContent>
+            <TooltipContent>No puedes cambiar tus propios roles.</TooltipContent>
         </Tooltip>
     ) : boton;
 }
 
 export function TablaUsuarios({
     personas,
+    rolesDisponibles,
     onSeleccionar,
 }: {
     personas: PersonaUsuario[];
+    rolesDisponibles: RolDisponible[];
     onSeleccionar: (persona: PersonaUsuario) => void;
 }) {
+    const nombresPorRol = new Map(rolesDisponibles.map(({ codigo, nombre }) => [codigo, nombre]));
+
     return (
         <Table aria-label="Usuarios">
             <TableHeader>
                 <TableRow>
                     <TableHead scope="col">Persona</TableHead>
                     <TableHead scope="col">DNI</TableHead>
-                    <TableHead scope="col">Rol</TableHead>
+                    <TableHead scope="col">Roles</TableHead>
                     <TableHead scope="col" className="text-right">
                         Acciones
                     </TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {personas.map((persona) => {
-                    const rol = persona.rol ?? "sin-rol";
-
-                    return (
-                        <TableRow key={persona.id}>
-                            <TableCell>
-                                <div className="mb-0.5 flex items-center gap-2">
-                                    <p className="font-semibold">
-                                        {persona.nombre}
-                                    </p>
-                                    {persona.es_usted && (
-                                        <Badge variant="outline">Tú</Badge>
-                                    )}
-                                </div>
-                                {persona.correos.map((correo) => (
-                                    <p
-                                        key={correo}
-                                        className="text-xs text-muted-foreground"
-                                    >
-                                        {correo}
-                                    </p>
-                                ))}
+                {personas.map((persona) => (
+                    <TableRow key={persona.id}>
+                        <TableCell>
+                            <div className="mb-0.5 flex items-center gap-2">
+                                <p className="font-semibold">
+                                    {persona.nombre}
+                                </p>
+                                {persona.es_usted && (
+                                    <Badge variant="outline">Tú</Badge>
+                                )}
+                            </div>
+                            {persona.correos.map((correo) => (
+                                <p
+                                    key={correo}
+                                    className="text-xs text-muted-foreground"
+                                >
+                                    {correo}
+                                </p>
+                            ))}
                             </TableCell>
                             <TableCell className="font-mono">
                                 {persona.dni || "—"}
                             </TableCell>
                             <TableCell>
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <Badge variant={variantesRol[rol]}>
-                                        {opcionesRol[rol].label}
-                                    </Badge>
-                                    {persona.rol_incompleto && (
+                                    {persona.roles.length === 0 && <Badge variant="outline">Sin rol</Badge>}
+                                    {persona.roles.map((rol) => (
+                                        <Badge key={rol} variant={rol === "ADMINISTRADOR" ? "default" : "secondary"}>
+                                            {nombresPorRol.get(rol) ?? rol}
+                                        </Badge>
+                                    ))}
+                                    {persona.roles_incompletos && (
                                         <Tooltip>
                                             <TooltipTrigger
                                                 type="button"
@@ -114,8 +113,7 @@ export function TablaUsuarios({
                                                 Revisar
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                El rol no coincide en todas sus
-                                                cuentas. Guarda para unificarlo.
+                                                Sus cuentas tienen roles distintos. Revisa la selección antes de guardar.
                                             </TooltipContent>
                                         </Tooltip>
                                     )}
@@ -128,8 +126,7 @@ export function TablaUsuarios({
                                 />
                             </TableCell>
                         </TableRow>
-                    );
-                })}
+                ))}
 
                 {personas.length === 0 && (
                     <TableRow>

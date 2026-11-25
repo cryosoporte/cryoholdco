@@ -2,11 +2,12 @@
 
 namespace App\Administracion;
 
+use App\Models\Rol;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
 /**
- * @phpstan-type PersonaUsuario array{id: int, nombre: string, correos: list<string>, dni: string, cuentas: int, rol: value-of<RolSistema>|null, rol_incompleto: bool, es_usted: bool}
+ * @phpstan-type PersonaUsuario array{id: int, nombre: string, correos: list<string>, dni: string, cuentas: int, roles: list<string>, roles_incompletos: bool, es_usted: bool}
  */
 class ListadoUsuarios
 {
@@ -28,6 +29,16 @@ class ListadoUsuarios
             ->values();
     }
 
+    /** @return list<array{codigo: string, nombre: string, descripcion: ?string}> */
+    public function rolesDisponibles(): array
+    {
+        return Rol::query()
+            ->orderByRaw('LOWER(nombre)')
+            ->orderBy('codigo')
+            ->get(['codigo', 'nombre', 'descripcion'])
+            ->toArray();
+    }
+
     /**
      * @param  Collection<int, User>  $cuentas
      * @return PersonaUsuario
@@ -35,7 +46,7 @@ class ListadoUsuarios
     private function persona(Collection $cuentas, bool $esUsted): array
     {
         $representante = $cuentas->first();
-        $estadoRol = EstadoRolPersona::desdeCuentas($cuentas);
+        $estadoRoles = EstadoRolesPersona::desdeCuentas($cuentas);
 
         $correos = $cuentas->map(fn (User $cuenta): string => mb_strtolower(trim($cuenta->email)))
             ->uniqueStrict()
@@ -48,8 +59,8 @@ class ListadoUsuarios
             'correos' => $correos,
             'dni' => trim((string) $representante->identificacion),
             'cuentas' => $cuentas->count(),
-            'rol' => $estadoRol->rol?->value,
-            'rol_incompleto' => $estadoRol->incompleto,
+            'roles' => $estadoRoles->roles,
+            'roles_incompletos' => $estadoRoles->incompleto,
             'es_usted' => $esUsted,
         ];
     }
@@ -58,10 +69,9 @@ class ListadoUsuarios
     private function ordenRol(array $persona): int
     {
         return match (true) {
-            $persona['rol_incompleto'] => 2,
-            $persona['rol'] === RolSistema::Administrador->value => 0,
-            $persona['rol'] === RolSistema::Gerencia->value => 1,
-            default => 3,
+            in_array(Rol::ADMINISTRADOR, $persona['roles'], true) => 0,
+            $persona['roles'] !== [] => 1,
+            default => 2,
         };
     }
 }
