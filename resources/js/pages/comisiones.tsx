@@ -7,11 +7,13 @@ import AppLayout from "@/layouts/app-layout";
 
 export default function Comisiones({
     fuente,
+    puede_ver_detalle,
     liquidaciones,
     anio,
     anios,
 }: {
     fuente: ActualizacionFuente | null;
+    puede_ver_detalle: boolean;
     liquidaciones: ResumenLiquidacion[];
     anio: string;
     anios: string[];
@@ -20,7 +22,7 @@ export default function Comisiones({
         <AppLayout title="Reportes - Comisiones">
             <div className="min-w-0 space-y-6">
                 <h1 className="text-2xl font-semibold tracking-tight">Comisiones</h1>
-                <AvisoActualizacionFuente fuente={fuente} />
+                {puede_ver_detalle && <AvisoActualizacionFuente fuente={fuente} />}
                 <section className="min-w-0 space-y-3" aria-labelledby="historial-comisiones">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <h2 id="historial-comisiones" className="text-lg font-semibold">Historial de liquidaciones</h2>

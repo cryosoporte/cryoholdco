@@ -46,6 +46,7 @@ class DetalleLiquidacion
         $cerrado = $periodo->hasta->toDateString() < FuenteCarga::ahora()->toDateString();
         $estadosEnvio = array_column($detalle['envios'] ?? [], 'estado');
         $enCurso = in_array('pendiente', $estadosEnvio, true);
+        $puedeVerDetalle = $usuario->can('comisiones.ver_detalle');
 
         return [
             'liquidacion' => $detalle,
@@ -61,8 +62,44 @@ class DetalleLiquidacion
                     && $usuario->can('comisiones.enviar'),
                 'puede_reenviar' => $activa?->estado === LiquidacionComision::ENVIADA && ! $enCurso
                     && in_array('fallido', $estadosEnvio, true) && $usuario->can('comisiones.enviar'),
+                'puede_ver_detalle' => $puedeVerDetalle,
             ],
         ];
+    }
+
+    /**
+     * Lo que recibe la pantalla: sin el permiso comisiones.ver_detalle no lleva la base,
+     * los envíos ni el historial completo. Las vistas previas de correo usan mostrar().
+     *
+     * @return array{liquidacion: ?array, periodo: string, meses_pendientes: list<string>, envio_en_curso: bool, aviso_separacion: ?string, permisos: array<string, bool>}
+     */
+    public function pantalla(string $id, User $usuario): array
+    {
+        $datos = $this->mostrar($id, $usuario);
+        if ($datos['liquidacion'] !== null && ! $datos['permisos']['puede_ver_detalle']) {
+            $datos['liquidacion'] = $this->sinDetalleOperativo($datos['liquidacion']);
+        }
+
+        return $datos;
+    }
+
+    /**
+     * Quita la base, los envíos y el historial para quien no tiene el permiso de detalle.
+     * Del historial solo quedan el proceso y el rechazo, que explican en qué está la liquidación.
+     *
+     * @param  array<string, mixed>  $detalle
+     * @return array<string, mixed>
+     */
+    private function sinDetalleOperativo(array $detalle): array
+    {
+        $detalle['base'] = null;
+        $detalle['envios'] = [];
+        $detalle['historial'] = array_values(array_filter(
+            $detalle['historial'],
+            fn (array $evento): bool => in_array($evento['tipo'], ['procesada', 'rechazada'], true),
+        ));
+
+        return $detalle;
     }
 
     /** @return list<array{tipo: string, por: string, fecha: string, comentario: ?string}> */

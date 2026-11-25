@@ -82,7 +82,7 @@ class LiquidacionesComisionesControllerTest extends TestCase
         $this->detalle()->assertOk()->assertInertia(fn (Assert $p): Assert => $p->missing('rol')
             ->where('liquidacion.total', 75)->where('permisos', [
                 'puede_procesar' => true, 'puede_aprobar' => false, 'puede_rechazar' => false,
-                'puede_enviar' => false, 'puede_reenviar' => false,
+                'puede_enviar' => false, 'puede_reenviar' => false, 'puede_ver_detalle' => true,
             ]));
         $this->detalle('2026-11')->assertInertia(fn (Assert $p): Assert => $p->where('permisos.puede_procesar', false));
         $this->detalle('2026-T4')->assertInertia(fn (Assert $p): Assert => $p->where('liquidacion', null)
@@ -209,6 +209,7 @@ class LiquidacionesComisionesControllerTest extends TestCase
         DB::table((new FuenteFacturasOracle)->tabla())->delete();
         DB::table('fuentes_datos')->update(['actualizado_por' => 'Carga posterior']);
         DB::table('users')->where('id', 10)->update(['name' => 'Nombre cambiado']);
+        $this->administracion();
         $this->detalle()->assertInertia(fn (Assert $p): Assert => $p->where('liquidacion.total', 75)->where('liquidacion.asesores.0.nombre', 'Alba')
             ->where('liquidacion.base.actualizacion_fuente.actualizado_por', null));
         $this->get(route('reportes.comisiones'))->assertInertia(fn (Assert $p): Assert => $p->where('liquidaciones.0.total', 75)->where('liquidaciones.0.estado', 'aprobada'));
@@ -219,6 +220,36 @@ class LiquidacionesComisionesControllerTest extends TestCase
             ->assertSee('Hola, Alba:')->assertSee('S/ 75.00')->assertDontSee('Beto');
         $this->get(route('reportes.comisiones.liquidaciones.correo-asesor', ['2026-10', '999']))->assertNotFound();
         Mail::assertSentCount(1);
+    }
+
+    public function test_sin_permiso_de_detalle_no_llegan_la_base_los_envios_ni_el_historial(): void
+    {
+        Mail::fake();
+        $this->administracion();
+        $this->accion('procesar')->assertSessionHasNoErrors();
+        $this->gerencia();
+        $this->detalle()->assertInertia(fn (Assert $p): Assert => $p
+            ->where('permisos.puede_aprobar', true)->where('permisos.puede_ver_detalle', false)
+            ->where('liquidacion.base', null)
+            ->where('liquidacion.historial', fn ($eventos): bool => collect($eventos)->pluck('tipo')->all() === ['procesada']));
+        $this->accion('aprobar')->assertSessionHasNoErrors();
+        $this->administracion();
+        $this->accion('enviar')->assertSessionHasNoErrors();
+
+        $this->detalle()->assertInertia(fn (Assert $p): Assert => $p
+            ->where('permisos.puede_ver_detalle', true)->whereNot('liquidacion.base', null)->has('liquidacion.envios', 2)
+            ->where('liquidacion.historial', fn ($eventos): bool => collect($eventos)->pluck('tipo')->all() === ['procesada', 'aprobada', 'enviada_personal']));
+        $this->get(route('reportes.comisiones'))->assertInertia(fn (Assert $p): Assert => $p
+            ->where('puede_ver_detalle', true)->whereNot('fuente', null));
+
+        $this->gerencia();
+        $this->detalle()->assertInertia(fn (Assert $p): Assert => $p
+            ->where('liquidacion.estado', 'enviada_personal')->where('liquidacion.total', 75)
+            ->where('liquidacion.base', null)->where('liquidacion.envios', [])
+            ->where('liquidacion.historial', fn ($eventos): bool => collect($eventos)->pluck('tipo')->all() === ['procesada']));
+        $this->get(route('reportes.comisiones'))->assertInertia(fn (Assert $p): Assert => $p
+            ->where('puede_ver_detalle', false)->where('fuente', null)->where('liquidaciones.0.total', 75));
+        $this->get(route('reportes.comisiones.liquidaciones.correo-gerencia', '2026-10'))->assertOk()->assertSee('S/ 75.00');
     }
 
     public function test_la_vista_previa_de_un_periodo_rechazado_usa_el_calculo_actual_como_la_pantalla(): void

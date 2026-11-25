@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Reportes;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Reportes\NuevaLiquidacionRequest;
 use App\Http\Requests\Reportes\RechazarLiquidacionRequest;
 use App\Mail\ComisionesParaAprobacion;
 use App\Mail\DetalleComisionAsesor;
@@ -29,7 +28,7 @@ class LiquidacionesComisionesController extends Controller
 
     public function mostrar(Request $request, string $liquidacion, DetalleLiquidacion $detalle): Response
     {
-        return Inertia::render('comisiones-liquidacion', $detalle->mostrar($liquidacion, $request->user()));
+        return Inertia::render('comisiones-liquidacion', $detalle->pantalla($liquidacion, $request->user()));
     }
 
     public function procesar(Request $request, string $liquidacion, ProcesarLiquidacion $procesar, DatosRealesComisiones $datos): RedirectResponse

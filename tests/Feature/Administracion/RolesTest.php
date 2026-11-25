@@ -37,7 +37,7 @@ class RolesTest extends TestCase
                 ->has('rolesRegistrados', 2)
                 ->where('rolesRegistrados.0', [
                     'codigo' => 'ADMINISTRADOR', 'nombre' => 'Administrador', 'descripcion' => null, 'es_sistema' => true,
-                    'personas' => 1, 'permisos' => 6, 'motivo_no_eliminar' => 'No puedes eliminar un rol de sistema.',
+                    'personas' => 1, 'permisos' => 7, 'motivo_no_eliminar' => 'No puedes eliminar un rol de sistema.',
                 ])
                 ->where('rolesRegistrados.1.personas', 1)
                 ->where('rolesRegistrados.1.permisos', 3)
@@ -66,7 +66,7 @@ class RolesTest extends TestCase
         $this->assertDatabaseHas('rol', [
             'codigo' => 'AREA_DE_REVISION_3', 'nombre' => 'Área de revisión', 'descripcion' => 'Revisa las liquidaciones.', 'es_sistema' => 'N',
         ]);
-        $this->assertDatabaseCount('rol_permiso', 9);
+        $this->assertDatabaseCount('rol_permiso', 10);
         $evento = EventoSeguridad::query()->sole();
         $this->assertSame('ROL_CREADO', $evento->accion);
         $this->assertSame('AREA_DE_REVISION_3', $evento->rol);
@@ -189,7 +189,7 @@ class RolesTest extends TestCase
             'administracion.laboratorios', 'administracion.roles', 'administracion.usuarios', 'comisiones.ver',
         ], $this->permisos('ADMINISTRADOR'));
         $detalle = $this->detalle(EventoSeguridad::query()->sole());
-        $this->assertSame(['comisiones.enviar', 'comisiones.procesar'], $detalle['quitados']);
+        $this->assertSame(['comisiones.enviar', 'comisiones.procesar', 'comisiones.ver_detalle'], $detalle['quitados']);
         $this->get(route('administracion.roles.mostrar', 'ADMINISTRADOR'))->assertInertia(fn (Assert $pagina): Assert => $pagina
             ->where('catalogo.0.modulo', 'Administración')
             ->where('catalogo.0.permisos.0.fijo', true)
@@ -244,7 +244,7 @@ class RolesTest extends TestCase
             ->assertSessionHasErrors(['rol' => $mensaje]);
 
         $this->assertDatabaseCount('rol', 2);
-        $this->assertDatabaseCount('rol_permiso', 9);
+        $this->assertDatabaseCount('rol_permiso', 10);
         $this->assertDatabaseCount('seguridad_evento', 0);
     }
 

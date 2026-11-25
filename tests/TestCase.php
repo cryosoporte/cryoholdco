@@ -80,6 +80,7 @@ abstract class TestCase extends BaseTestCase
             ['rol' => 'ADMINISTRADOR', 'permiso' => 'comisiones.ver'],
             ['rol' => 'ADMINISTRADOR', 'permiso' => 'comisiones.procesar'],
             ['rol' => 'ADMINISTRADOR', 'permiso' => 'comisiones.enviar'],
+            ['rol' => 'ADMINISTRADOR', 'permiso' => 'comisiones.ver_detalle'],
             ['rol' => 'GERENCIA', 'permiso' => 'comisiones.ver'],
             ['rol' => 'GERENCIA', 'permiso' => 'comisiones.aprobar'],
             ['rol' => 'GERENCIA', 'permiso' => 'comisiones.rechazar'],

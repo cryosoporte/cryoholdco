@@ -62,9 +62,9 @@ export default function ComisionesLiquidacion({ liquidacion, periodo, meses_pend
                 ) : (
                     <>
                         <InsigniaEstado estado={liquidacion.estado} />
-                        <PasosLiquidacion liquidacion={liquidacion} />
-                        <BaseLiquidacion base={liquidacion.base} />
-                        {liquidacion.tipo_periodo === "mensual" && liquidacion.base.actualizacion_fuente !== undefined && (
+                        <PasosLiquidacion liquidacion={liquidacion} conDetalle={permisos.puede_ver_detalle} />
+                        {liquidacion.base !== null && <BaseLiquidacion base={liquidacion.base} />}
+                        {liquidacion.tipo_periodo === "mensual" && liquidacion.base?.actualizacion_fuente !== undefined && (
                             <AvisoActualizacionFuente fuente={liquidacion.base.actualizacion_fuente} />
                         )}
                         <IndicadoresLiquidacion indicadores={liquidacion.indicadores} />
@@ -75,7 +75,7 @@ export default function ComisionesLiquidacion({ liquidacion, periodo, meses_pend
                         )}
                         <AccionesLiquidacion key={version} liquidacion={liquidacion} permisos={permisos} />
                         <PestanasCargos key={liquidacion.id} liquidacion={liquidacion} />
-                        {(liquidacion.estado === "aprobada" || liquidacion.estado === "enviada_personal") && (
+                        {permisos.puede_ver_detalle && (liquidacion.estado === "aprobada" || liquidacion.estado === "enviada_personal") && (
                             <EnviosPersonal
                                 key={version}
                                 idLiquidacion={liquidacion.id}
@@ -85,7 +85,7 @@ export default function ComisionesLiquidacion({ liquidacion, periodo, meses_pend
                                 puedeReenviar={permisos.puede_reenviar}
                             />
                         )}
-                        <HistorialLiquidacion historial={liquidacion.historial} />
+                        {permisos.puede_ver_detalle && <HistorialLiquidacion historial={liquidacion.historial} />}
                     </>
                 )}
             </div>

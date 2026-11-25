@@ -112,7 +112,8 @@ export type Liquidacion = ResumenLiquidacion & {
     colaboradores: number;
     colaboradores_con_comision: number;
     actualizada_en: string;
-    base: BaseLiquidacion;
+    /** null para quien no tiene el permiso de ver el detalle operativo. */
+    base: BaseLiquidacion | null;
     indicadores: Indicador[];
     cargos: Cargo[];
     resumen_cargos: ResumenCargo[];
@@ -129,4 +130,5 @@ export type PermisosLiquidacion = {
     puede_rechazar: boolean;
     puede_enviar: boolean;
     puede_reenviar: boolean;
+    puede_ver_detalle: boolean;
 };

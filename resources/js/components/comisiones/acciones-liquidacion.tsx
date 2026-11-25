@@ -36,13 +36,19 @@ export function AccionesLiquidacion({ liquidacion, permisos }: {
     if (estado === "aprobada" || estado === "enviada_personal") {
         const aprobada = ultimoEvento(liquidacion, "aprobada");
 
+        if (!permisos.puede_ver_detalle && !permisos.puede_enviar) {
+            return null;
+        }
+
         return (
             <div className="space-y-3">
-                <p className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">
-                    {aprobada
-                        ? <>Período cerrado, aprobado por <strong>{aprobada.por}</strong> el {formatearFechaHora(aprobada.fecha, " a las ")}.</>
-                        : "Período cerrado y aprobado por Gerencia."}
-                </p>
+                {permisos.puede_ver_detalle && (
+                    <p className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+                        {aprobada
+                            ? <>Período cerrado, aprobado por <strong>{aprobada.por}</strong> el {formatearFechaHora(aprobada.fecha, " a las ")}.</>
+                            : "Período cerrado y aprobado por Gerencia."}
+                    </p>
+                )}
                 {permisos.puede_enviar && <DialogoConfirmar liquidacion={liquidacion} accion="enviar" />}
             </div>
         );

@@ -26,6 +26,11 @@ class CatalogoPermisos
             'nombre' => 'Ver el reporte de comisiones',
             'descripcion' => 'Permite consultar el reporte, sus liquidaciones y las vistas previas de correo.',
         ],
+        'comisiones.ver_detalle' => [
+            'modulo' => 'Comisiones',
+            'nombre' => 'Ver el detalle operativo de la liquidación',
+            'descripcion' => 'Permite ver la base de datos usada, los envíos al personal y el historial de cada liquidación.',
+        ],
         'comisiones.procesar' => [
             'modulo' => 'Comisiones',
             'nombre' => 'Procesar liquidaciones',

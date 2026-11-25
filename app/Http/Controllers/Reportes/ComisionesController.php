@@ -19,9 +19,11 @@ class ComisionesController extends Controller
     public function index(FiltrarLiquidacionesRequest $request, LiquidacionesComisiones $liquidaciones, DatosRealesComisiones $datos): Response
     {
         $anio = $request->anio($datos);
+        $puedeVerDetalle = $request->user()->can('comisiones.ver_detalle');
 
         return Inertia::render('comisiones', [
-            'fuente' => self::actualizacionFuente(),
+            'fuente' => $puedeVerDetalle ? self::actualizacionFuente() : null,
+            'puede_ver_detalle' => $puedeVerDetalle,
             'liquidaciones' => $liquidaciones->historial($datos, $anio),
             'anio' => $anio === null ? FiltrarLiquidacionesRequest::TODOS : (string) $anio,
             'anios' => array_map('strval', $datos->aniosDisponibles()),

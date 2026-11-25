@@ -11,16 +11,21 @@ const pasoActual: Record<EstadoLiquidacion, number> = {
     enviada_personal: 3,
 };
 
-export function PasosLiquidacion({ liquidacion }: { liquidacion: Liquidacion }) {
+/** Sin `conDetalle` los pasos solo dicen en qué estado están, sin cifras de la base, nombres ni correos. */
+export function PasosLiquidacion({ liquidacion, conDetalle }: { liquidacion: Liquidacion; conDetalle: boolean }) {
     const actual = pasoActual[liquidacion.estado];
     const aprobacion = liquidacion.historial.find((evento) => evento.tipo === "aprobada");
     const rechazado = liquidacion.estado === "rechazada";
     const enviados = liquidacion.envios.filter((envio) => envio.estado === "enviado").length;
     const detalles = [
-        `${liquidacion.base.filas.toLocaleString("es-PE")} filas de ${liquidacion.base.fuente}`,
+        conDetalle && liquidacion.base !== null
+            ? `${liquidacion.base.filas.toLocaleString("es-PE")} filas de ${liquidacion.base.fuente}`
+            : "Cálculo del período",
         rechazado ? "Devuelta por gerencia" : actual >= 1 ? "Correo enviado a gerencia" : "Pendiente de procesar",
-        aprobacion ? `Por ${aprobacion.por}` : "Pendiente de aprobación",
-        actual >= 3 ? `${enviados} de ${liquidacion.envios.length} correos` : actual === 2 ? "Pendiente de envío por Administración" : "Después de la aprobación",
+        actual >= 2 ? (conDetalle && aprobacion ? `Por ${aprobacion.por}` : "Aprobada") : "Pendiente de aprobación",
+        actual >= 3
+            ? (conDetalle ? `${enviados} de ${liquidacion.envios.length} correos` : "Correos enviados")
+            : actual === 2 ? "Pendiente de envío por Administración" : "Después de la aprobación",
     ];
 
     return (
