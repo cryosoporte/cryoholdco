@@ -41,10 +41,20 @@ class Rol extends Model
         return $this->codigo === self::ADMINISTRADOR || $this->es_sistema === 'S';
     }
 
-    /** @return list<string> */
+    /**
+     * ADMINISTRADOR tiene siempre todos los permisos del catálogo, incluidos los que se agreguen después.
+     *
+     * @return list<string>
+     */
     public function permisosFijos(): array
     {
-        return $this->codigo === self::ADMINISTRADOR ? CatalogoPermisos::codigosAdministracion() : [];
+        return self::fijosDe($this->codigo);
+    }
+
+    /** @return list<string> */
+    public static function fijosDe(string $codigo): array
+    {
+        return $codigo === self::ADMINISTRADOR ? array_keys(CatalogoPermisos::PERMISOS) : [];
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Administracion;
 
+use App\Administracion\CatalogoPermisos;
 use App\Models\UsuarioLaboratorio;
 use Database\Factories\UserFactory;
 use Illuminate\Support\Facades\DB;
@@ -103,16 +104,15 @@ class PermisosAdministracionTest extends TestCase
         $this->put(route('administracion.usuarios.roles', $usuario->id + 1), ['roles' => []])->assertForbidden();
     }
 
-    public function test_administrador_conserva_solo_los_permisos_fijos_si_no_tiene_permisos_guardados(): void
+    public function test_administrador_tiene_todos_los_permisos_aunque_no_tenga_permisos_guardados(): void
     {
         $usuario = UserFactory::new()->make(['id' => 1]);
         $this->asignarRol(1, 'ADMINISTRADOR');
         DB::table('rol_permiso')->where('rol', 'ADMINISTRADOR')->delete();
 
-        $this->assertSame([
-            'administracion.laboratorios', 'administracion.usuarios', 'administracion.roles',
-        ], $usuario->codigosPermiso());
+        $this->assertSame(array_keys(CatalogoPermisos::PERMISOS), $usuario->codigosPermiso());
         $this->assertTrue($usuario->can('administracion.ver'));
-        $this->assertFalse($usuario->can('comisiones.ver'));
+        $this->assertTrue($usuario->can('comisiones.ver_detalle'));
+        $this->assertTrue($usuario->can('comisiones.aprobar'));
     }
 }

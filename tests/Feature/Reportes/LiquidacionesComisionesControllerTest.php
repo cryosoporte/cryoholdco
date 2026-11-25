@@ -119,11 +119,9 @@ class LiquidacionesComisionesControllerTest extends TestCase
     {
         Mail::fake();
         $this->administracion();
-        foreach (['aprobar', 'rechazar'] as $accion) {
-            $this->accion($accion)->assertForbidden();
-        }
-        foreach (['enviar', 'reenviar'] as $accion) {
-            $this->accion($accion)->assertSessionHasErrors('accion');
+        // ADMINISTRADOR tiene todos los permisos: en borrador no hay nada que aprobar ni rechazar.
+        foreach (['aprobar', 'rechazar', 'enviar', 'reenviar'] as $accion) {
+            $this->accion($accion, ['comentario' => 'Revisar el detalle.'])->assertSessionHasErrors('accion');
         }
         $this->gerencia();
         foreach (['procesar', 'enviar', 'reenviar'] as $accion) {

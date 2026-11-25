@@ -53,9 +53,9 @@ class PermisosComisionesTest extends TestCase
 
     /** @param list<string> $permitidas */
     #[TestWith([null, []])]
-    #[TestWith(['ADMINISTRADOR', ['ver', 'procesar', 'enviar']])]
+    #[TestWith(['ADMINISTRADOR', ['ver', 'procesar', 'aprobar', 'rechazar', 'enviar']])]
     #[TestWith(['GERENCIA', ['ver', 'aprobar', 'rechazar']])]
-    public function test_cada_rol_solo_tiene_los_permisos_de_su_funcion(?string $rol, array $permitidas): void
+    public function test_cada_rol_tiene_los_permisos_de_su_funcion(?string $rol, array $permitidas): void
     {
         $usuario = UserFactory::new()->make(['id' => 1]);
         if ($rol !== null) {

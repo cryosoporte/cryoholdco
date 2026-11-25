@@ -60,7 +60,7 @@ class User extends Authenticatable
             ->flatMap(fn (Rol $rol): array => $rol->permisosPermitidos($rol->permisos->pluck('permiso')->all()))->all();
 
         if ($this->roles->containsStrict('rol', Rol::ADMINISTRADOR)) {
-            $permisos = [...$permisos, ...CatalogoPermisos::codigosAdministracion()];
+            $permisos = [...$permisos, ...Rol::fijosDe(Rol::ADMINISTRADOR)];
         }
 
         return $this->permisosEfectivos = array_values(array_intersect(array_keys(CatalogoPermisos::PERMISOS), $permisos));

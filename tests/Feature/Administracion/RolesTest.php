@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Administracion;
 
+use App\Administracion\CatalogoPermisos;
 use App\Models\EventoSeguridad;
 use App\Models\Rol;
 use App\Models\User;
@@ -37,7 +38,7 @@ class RolesTest extends TestCase
                 ->has('rolesRegistrados', 2)
                 ->where('rolesRegistrados.0', [
                     'codigo' => 'ADMINISTRADOR', 'nombre' => 'Administrador', 'descripcion' => null, 'es_sistema' => true,
-                    'personas' => 1, 'permisos' => 7, 'motivo_no_eliminar' => 'No puedes eliminar un rol de sistema.',
+                    'personas' => 1, 'permisos' => count(CatalogoPermisos::PERMISOS), 'motivo_no_eliminar' => 'No puedes eliminar un rol de sistema.',
                 ])
                 ->where('rolesRegistrados.1.personas', 1)
                 ->where('rolesRegistrados.1.permisos', 3)
@@ -179,22 +180,22 @@ class RolesTest extends TestCase
             ->where('rol.obsoletos', ['comisiones.obsoleto']));
     }
 
-    public function test_administrador_conserva_los_tres_permisos_fijos_aunque_se_omitan(): void
+    public function test_administrador_conserva_todos_los_permisos_aunque_se_omitan(): void
     {
         $this->actingAs($this->administrador())->put(route('administracion.roles.permisos', 'ADMINISTRADOR'), [
             'permisos' => ['comisiones.ver'],
         ])->assertRedirectToRoute('administracion.roles.mostrar', 'ADMINISTRADOR')->assertSessionHasNoErrors();
 
-        $this->assertSame([
-            'administracion.laboratorios', 'administracion.roles', 'administracion.usuarios', 'comisiones.ver',
-        ], $this->permisos('ADMINISTRADOR'));
+        $todos = array_keys(CatalogoPermisos::PERMISOS);
+        sort($todos, SORT_STRING);
+        $this->assertSame($todos, $this->permisos('ADMINISTRADOR'));
         $detalle = $this->detalle(EventoSeguridad::query()->sole());
-        $this->assertSame(['comisiones.enviar', 'comisiones.procesar', 'comisiones.ver_detalle'], $detalle['quitados']);
+        $this->assertSame([], $detalle['quitados']);
+        $this->assertSame(['comisiones.aprobar', 'comisiones.rechazar'], $detalle['agregados']);
         $this->get(route('administracion.roles.mostrar', 'ADMINISTRADOR'))->assertInertia(fn (Assert $pagina): Assert => $pagina
-            ->where('catalogo.0.modulo', 'Administración')
-            ->where('catalogo.0.permisos.0.fijo', true)
-            ->where('catalogo.0.permisos.1.fijo', true)
-            ->where('catalogo.0.permisos.2.fijo', true)
+            ->where('catalogo', fn ($modulos): bool => collect($modulos)->flatMap(fn (array $modulo): array => $modulo['permisos'])
+                ->every(fn (array $permiso): bool => $permiso['fijo'])));
+        $this->get(route('administracion.roles.mostrar', 'GERENCIA'))->assertInertia(fn (Assert $pagina): Assert => $pagina
             ->where('catalogo.1.permisos.0.fijo', false));
     }
 
