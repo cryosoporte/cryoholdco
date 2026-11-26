@@ -100,6 +100,23 @@ class ListadoSerologiaTest extends TestCase
         $this->assertSame(['Carla Tomada', 'Diana Recibido'], $this->nombres($respuesta));
     }
 
+    public function test_tomada_y_recibido_salen_de_las_fechas_y_no_del_campo_serologia(): void
+    {
+        $this->crearCliente(1, 'Ana Resultado Sin Toma', fechaResultado: '2026-11-01 10:00:00');
+        $this->crearCliente(2, 'Berta Tomada Con S', fechaToma: '2026-11-05 10:00:00', serologia: 'S');
+        $this->crearCliente(3, 'Carla Solo S', serologia: 'S');
+
+        $respuesta = $this->consultarListado()->assertOk()
+            ->assertJsonPath('props.conteos', ['pendiente' => 0, 'tomada' => 1, 'recibido' => 1, 'por_vencer' => 0]);
+
+        $this->assertSame(['Ana Resultado Sin Toma'], $this->nombres($this->consultarListado(['estado' => 'recibido'])));
+        $this->assertSame(['Berta Tomada Con S'], $this->nombres($this->consultarListado(['estado' => 'tomada'])));
+        $this->assertSame(
+            ['recibido', 'tomada'],
+            array_slice(array_column(array_column($respuesta->json('props.resultados.data'), 'plazo'), 'situacion'), 0, 2),
+        );
+    }
+
     public function test_pagina_de_20_en_20_y_conserva_los_filtros_en_los_enlaces(): void
     {
         foreach (range(1, 21) as $numero) {
@@ -138,7 +155,7 @@ class ListadoSerologiaTest extends TestCase
         $this->crearCliente(1, 'Ana Pendiente', fechaNacimiento: '2026-12-20', vendedor: '70000001');
         $this->crearCliente(2, 'Berta Por Vencer', fechaNacimiento: '2026-11-06', vendedor: '70000001');
         $this->crearCliente(3, 'Carla Tomada', fechaToma: '2026-11-05 10:00:00', vendedor: '70000002');
-        $this->crearCliente(4, 'Diana Recibido', fechaToma: '2026-10-20 10:00:00', serologia: 'S', vendedor: '70000002');
+        $this->crearCliente(4, 'Diana Recibido', fechaToma: '2026-10-20 10:00:00', fechaResultado: '2026-11-01 10:00:00', vendedor: '70000002');
 
         $this->crearCliente(5, 'Elena Otra Empresa', empresa: '002');
         $this->crearCliente(6, 'Fiorella Otro Servicio', servicio: 'X');
@@ -150,6 +167,7 @@ class ListadoSerologiaTest extends TestCase
         string $nombre,
         string $fechaNacimiento = '2026-12-20',
         ?string $fechaToma = null,
+        ?string $fechaResultado = null,
         ?string $serologia = null,
         ?string $vendedor = null,
         string $empresa = '001',
@@ -171,7 +189,7 @@ class ListadoSerologiaTest extends TestCase
         ]);
         DB::table('ope_tomas_serologicas')->insert([
             'no_cia' => $empresa, 'numero_contrato_base' => $base, 'numero_toma' => 1,
-            'fecha_toma' => $fechaToma, 'fecha_resultado' => $serologia === null ? null : '2026-11-01 10:00:00',
+            'fecha_toma' => $fechaToma, 'fecha_resultado' => $fechaResultado,
         ]);
 
         if ($serologia !== null) {
