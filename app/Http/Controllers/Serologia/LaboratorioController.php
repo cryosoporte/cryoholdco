@@ -22,6 +22,7 @@ class LaboratorioController extends Controller
         [$laboratorio, $sede] = $sedeActiva->actual();
 
         return Inertia::render('laboratorio', [
+<<<<<<< Updated upstream
             'laboratorios' => Sede::laboratorios()->map(fn (object $fila): array => [
                 'codigo' => $fila->identificacion,
                 'nombre' => $fila->alias,
@@ -31,6 +32,9 @@ class LaboratorioController extends Controller
                     'codigo' => $fila->codigo_sede,
                     'nombre' => $fila->descripcion_sede,
                 ])->all(),
+=======
+            'sedes' => $sedeActiva->opciones(),
+>>>>>>> Stashed changes
             'laboratorio' => $laboratorio,
             'sede' => $sede,
             'nombre_sede' => $laboratorio !== null && $sede !== null
@@ -43,6 +47,22 @@ class LaboratorioController extends Controller
                     'hora' => $fila->fecha_toma->format('H:i'),
                 ])->all() : [],
             'resultado' => $request->session()->get('consulta_laboratorio'),
+        ]);
+    }
+
+    /**
+     * La pantalla donde el laboratorio con varias sedes activas elige desde cuál
+     * trabaja. Es el paso obligatorio entre el inicio de sesión y el mostrador.
+     */
+    public function elegirSede(SedeActivaLaboratorio $sedeActiva): Response
+    {
+        [$laboratorio, $sede] = $sedeActiva->actual();
+
+        return Inertia::render('laboratorio-sede', [
+            'sedes' => $sedeActiva->opciones(),
+            'laboratorio' => $laboratorio,
+            'nombre_laboratorio' => Sede::alias($laboratorio),
+            'sede' => $sede,
         ]);
     }
 
@@ -113,9 +133,17 @@ class LaboratorioController extends Controller
     {
         $datos = $request->validated();
 
+<<<<<<< Updated upstream
         if (! $sedeActiva->elegir($datos['laboratorio'], $datos['sede'] ?? null)) {
             return to_route('laboratorio.index')->withErrors([
                 'laboratorio' => 'Ese laboratorio no tiene sedes activas.',
+=======
+        if (! $sedeActiva->elegir($datos['sede'])) {
+            $destino = $sedeActiva->debeElegir() ? 'laboratorio.sede.elegir' : 'laboratorio.index';
+
+            return to_route($destino)->withErrors([
+                'sede' => 'Esa sede no está activa para tu laboratorio.',
+>>>>>>> Stashed changes
             ]);
         }
 
