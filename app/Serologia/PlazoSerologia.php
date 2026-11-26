@@ -7,16 +7,18 @@ use Carbon\CarbonImmutable;
 class PlazoSerologia
 {
     /**
+     * Con fecha de resultado está recibido, aunque falte la fecha de toma; con
+     * solo fecha de toma está tomada; sin ninguna, corre el plazo desde el nacimiento.
+     *
      * @return array{situacion: string, fecha_apertura: ?string, fecha_limite: ?string, dias_restantes: ?int, porcentaje_transcurrido: ?int, texto: string}
      */
     public function paraRegistro(
-        ?string $serologia,
         ?string $fechaNacimiento,
         ?string $fechaToma,
         ?string $fechaResultado,
         CarbonImmutable $hoy
     ): array {
-        if ($serologia === AlcanceSerologia::SEROLOGIA_RECIBIDA) {
+        if ($fechaResultado !== null) {
             $situacion = 'recibido';
             $fecha = $fechaResultado;
             $prefijo = 'Resultado recibido el ';
@@ -28,10 +30,8 @@ class PlazoSerologia
             return $this->calcular($fechaNacimiento, $hoy);
         }
 
-        $texto = $fecha === null
-            ? 'Fecha de resultado no registrada'
-            : $prefijo.CarbonImmutable::createFromFormat('!Y-m-d', $fecha, AlcanceSerologia::ZONA_HORARIA)
-                ->locale('es')->translatedFormat('j M Y');
+        $texto = $prefijo.CarbonImmutable::createFromFormat('!Y-m-d', $fecha, AlcanceSerologia::ZONA_HORARIA)
+            ->locale('es')->translatedFormat('j M Y');
 
         return [
             'situacion' => $situacion,

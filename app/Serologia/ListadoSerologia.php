@@ -150,17 +150,23 @@ class ListadoSerologia
 
     /**
      * La única definición de cada estado: la usan tanto los conteos como el filtro.
+     *
+     * Tomada y recibido salen solo de las fechas de OPE_TOMAS_SEROLOGICAS; un
+     * resultado sin fecha de toma cuenta como recibido. Pendiente y por vencer
+     * excluyen además a quien ya tiene serología en LAB_COLECTAS.
      */
     private function aplicarEstado(Builder $query, string $estado, CarbonImmutable $hoy): Builder
     {
         return match ($estado) {
             'pendiente' => $query->whereNull('serologia')
-                ->whereNull('fecha_toma'),
-            'tomada' => $query->whereNull('serologia')
-                ->whereNotNull('fecha_toma'),
-            'recibido' => $query->where('serologia', AlcanceSerologia::SEROLOGIA_RECIBIDA),
+                ->whereNull('fecha_toma')
+                ->whereNull('fecha_resultado'),
+            'tomada' => $query->whereNotNull('fecha_toma')
+                ->whereNull('fecha_resultado'),
+            'recibido' => $query->whereNotNull('fecha_resultado'),
             'por_vencer' => $query->whereNull('serologia')
                 ->whereNull('fecha_toma')
+                ->whereNull('fecha_resultado')
                 ->whereNotNull('fecha_nacimiento')
                 ->whereBetween('fecha_nacimiento', [
                     $hoy->subDays(self::DIAS_POR_VENCER)->toDateString(),
@@ -179,7 +185,6 @@ class ListadoSerologia
         $fila->numero_toma = $fila->numero_toma === null ? null : (int) $fila->numero_toma;
         $fila->detalle = $this->detalleSerologia->paraFila($fila, $fichas, $hoy);
         $fila->plazo = $this->plazoSerologia->paraRegistro(
-            serologia: $fila->serologia,
             fechaNacimiento: $fila->fecha_nacimiento,
             fechaToma: $fila->fecha_toma_dia,
             fechaResultado: $fila->fecha_resultado_dia,

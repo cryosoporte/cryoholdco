@@ -11,7 +11,6 @@ class PlazoSerologiaTest extends TestCase
 {
     #[DataProvider('registrosConMuestraOResultado')]
     public function test_muestra_la_fecha_del_estado_sin_barra_ni_vencimiento(
-        ?string $serologia,
         ?string $fechaToma,
         ?string $fechaResultado,
         string $situacion,
@@ -20,7 +19,7 @@ class PlazoSerologiaTest extends TestCase
         $calculador = new PlazoSerologia;
 
         $plazo = $calculador->paraRegistro(
-            $serologia, null, $fechaToma, $fechaResultado,
+            '2026-11-06', $fechaToma, $fechaResultado,
             new CarbonImmutable('2026-11-07', 'America/Lima'),
         );
 
@@ -34,23 +33,20 @@ class PlazoSerologiaTest extends TestCase
         ], $plazo);
     }
 
-    /** @return array<string, array{?string, ?string, ?string, string, string}> */
+    /** @return array<string, array{?string, ?string, string, string}> */
     public static function registrosConMuestraOResultado(): array
     {
         return [
-            'tomada con fecha' => [null, '2026-11-06', null, 'tomada', 'Tomada el 6 nov. 2026'],
-            'resultado sin indicador S no cambia tomada' => [null, '2026-11-06', '2026-11-07', 'tomada', 'Tomada el 6 nov. 2026'],
-            'S tiene prioridad sobre toma' => ['S', '2026-11-06', '2026-11-07', 'recibido', 'Resultado recibido el 7 nov. 2026'],
-            'recibido sin toma' => ['S', null, '2026-11-07', 'recibido', 'Resultado recibido el 7 nov. 2026'],
-            'recibido sin fecha de resultado no usa fecha de toma' => ['S', '2026-11-06', null, 'recibido', 'Fecha de resultado no registrada'],
-            'recibido sin ninguna fecha' => ['S', null, null, 'recibido', 'Fecha de resultado no registrada'],
+            'toma sin resultado es tomada' => ['2026-11-06', null, 'tomada', 'Tomada el 6 nov. 2026'],
+            'toma y resultado es recibido' => ['2026-11-06', '2026-11-07', 'recibido', 'Resultado recibido el 7 nov. 2026'],
+            'resultado sin toma es recibido' => [null, '2026-11-07', 'recibido', 'Resultado recibido el 7 nov. 2026'],
         ];
     }
 
-    public function test_conserva_el_plazo_pendiente_si_solo_existe_fecha_de_resultado(): void
+    public function test_sin_fechas_de_toma_ni_resultado_corre_el_plazo(): void
     {
         $plazo = (new PlazoSerologia)->paraRegistro(
-            null, '2026-11-06', null, '2026-11-07',
+            '2026-11-06', null, null,
             new CarbonImmutable('2026-11-07', 'America/Lima'),
         );
 
