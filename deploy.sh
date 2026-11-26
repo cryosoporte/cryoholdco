@@ -1,25 +1,37 @@
+
 #!/bin/bash
+set -Eeuo pipefail
 
-set -e
+APP_DIR="/srv/cryoholdco"
+CONTAINER="cryoholdco"
 
-cd /srv/cryoholdco
+echo "======================================"
+echo " INICIANDO DESPLIEGUE DE CRYOHOLDCO"
+echo "======================================"
 
-echo "Iniciando despliegue..."
+cd "$APP_DIR"
 
-# Obtener cambios de GitHub
+echo "[1/5] Actualizando código desde GitHub..."
 git fetch origin
-
-# Actualizar main
 git pull --ff-only origin main
 
-# Instalar dependencias
-docker exec cryoholdco composer install \
+echo "[2/5] Instalando dependencias del frontend..."
+npm ci
+
+echo "[3/5] Compilando frontend..."
+npm run build
+
+echo "[4/5] Instalando dependencias de Laravel..."
+docker exec "$CONTAINER" composer install \
     --no-interaction \
     --prefer-dist \
-    --optimize-autoloader
+    --optimize-autoloader \
+    --no-dev
 
-# Limpiar y reconstruir cachés
-docker exec cryoholdco php artisan optimize:clear
-docker exec cryoholdco php artisan optimize
+echo "[5/5] Optimizando Laravel..."
+docker exec "$CONTAINER" php artisan optimize:clear
+docker exec "$CONTAINER" php artisan optimize
 
-echo "Despliegue finalizado correctamente."
+echo "======================================"
+echo " DESPLIEGUE FINALIZADO CORRECTAMENTE"
+echo "======================================"
