@@ -36,10 +36,21 @@ class LaboratorioControllerTest extends TestCase
         ]);
 
         $this->get(route('laboratorio.index'))->assertOk()->assertInertia(fn (Assert $page): Assert => $page
+<<<<<<< HEAD
             ->component('laboratorio')
             ->where('laboratorio', '20330025213')
             ->where('nombre_laboratorio', 'Laboratorio de prueba')
             ->where('sedes', [['codigo' => '01', 'nombre' => 'Sede 01']])
+=======
+<<<<<<< Updated upstream
+            ->component('laboratorio')->where('laboratorio', null)->where('sede', null)
+            ->where('hoy', [])->where('resultado', null));
+=======
+            ->component('laboratorio')
+            ->where('laboratorio', '20330025213')
+            ->where('nombre_laboratorio', 'Laboratorio de prueba')
+            ->where('sedes', [['codigo' => '01', 'nombre' => 'Sede 01', 'direccion' => null, 'ciudad' => 'LIMA']])
+>>>>>>> Pedro
             ->where('sede', '01')
             ->where('nombre_sede', 'Sede 01')
             ->missing('laboratorios')
@@ -58,6 +69,10 @@ class LaboratorioControllerTest extends TestCase
         $this->post(route('laboratorio.consultar'), ['codigo' => '12345678'])->assertRedirectToRoute('laboratorio.login');
         $this->post(route('laboratorio.marcar'), ['codigo' => '12345678', 'numero_toma' => 1])->assertRedirectToRoute('laboratorio.login');
         $this->post(route('laboratorio.sede'), ['sede' => '01'])->assertRedirectToRoute('laboratorio.login');
+<<<<<<< HEAD
+=======
+        $this->get(route('laboratorio.sede.elegir'))->assertRedirectToRoute('laboratorio.login');
+>>>>>>> Pedro
     }
 
     public function test_un_usuario_interno_no_entra_al_mostrador(): void
@@ -91,6 +106,10 @@ class LaboratorioControllerTest extends TestCase
 
         $this->assertGuest('laboratorio');
         $this->assertDatabaseHas('ope_tomas_serologicas', ['numero_toma' => 1, 'fecha_toma' => null]);
+<<<<<<< HEAD
+=======
+>>>>>>> Stashed changes
+>>>>>>> Pedro
     }
 
     public function test_rechaza_la_busqueda_sin_codigo(): void
@@ -186,10 +205,17 @@ class LaboratorioControllerTest extends TestCase
         ]);
     }
 
-    public function test_usa_la_primera_sede_si_la_guardada_no_esta_activa(): void
+    public function test_usa_su_unica_sede_aunque_la_guardada_ya_no_este_activa(): void
     {
         $this->crearContratoPrueba();
+<<<<<<< HEAD
+=======
+<<<<<<< Updated upstream
+        $this->crearSedePrueba(sede: '01');
+>>>>>>> Pedro
         $this->crearSedePrueba(sede: '02');
+=======
+>>>>>>> Stashed changes
 
         $this->withSession(['laboratorio.sede' => '07'])
             ->post(route('laboratorio.marcar'), ['codigo' => '12345678', 'numero_toma' => 1])
@@ -197,6 +223,85 @@ class LaboratorioControllerTest extends TestCase
         $this->assertDatabaseHas('ope_tomas_serologicas', [
             'numero_toma' => 1, 'laboratorio_toma' => '20330025213', 'sede_toma' => '01',
         ]);
+    }
+
+    public function test_con_una_sola_sede_entra_directo_al_mostrador(): void
+    {
+        $this->simularSysdateOracle('2026-11-10 08:00:00');
+
+        $this->get(route('laboratorio.index'))->assertOk()->assertInertia(fn (Assert $page): Assert => $page
+            ->component('laboratorio')
+            ->where('sede', '01'));
+    }
+
+    public function test_con_varias_sedes_el_mostrador_pide_elegir_una(): void
+    {
+        $this->crearContratoPrueba();
+        $this->crearSedePrueba(sede: '02');
+
+        $this->get(route('laboratorio.index'))->assertRedirectToRoute('laboratorio.sede.elegir');
+        $this->post(route('laboratorio.consultar'), ['codigo' => 'PE-CR-2026-000001-0'])
+            ->assertRedirectToRoute('laboratorio.sede.elegir');
+        $this->post(route('laboratorio.marcar'), ['codigo' => '12345678', 'numero_toma' => 1])
+            ->assertRedirectToRoute('laboratorio.sede.elegir');
+
+        $this->assertDatabaseHas('ope_tomas_serologicas', ['numero_toma' => 1, 'fecha_toma' => null]);
+    }
+
+    public function test_la_pantalla_de_eleccion_trae_las_sedes_activas_del_laboratorio(): void
+    {
+        $this->crearSedePrueba(sede: '02');
+        $this->crearSedePrueba('20396499691', '05');
+
+        $this->get(route('laboratorio.sede.elegir'))->assertOk()->assertInertia(fn (Assert $page): Assert => $page
+            ->component('laboratorio-sede')
+            ->where('laboratorio', '20330025213')
+            ->where('nombre_laboratorio', 'Laboratorio de prueba')
+            ->where('sede', null)
+            ->where('sedes', [
+                ['codigo' => '01', 'nombre' => 'Sede 01', 'direccion' => null, 'ciudad' => 'LIMA'],
+                ['codigo' => '02', 'nombre' => 'Sede 02', 'direccion' => null, 'ciudad' => 'LIMA'],
+            ]));
+    }
+
+    public function test_al_elegir_la_sede_entra_al_mostrador(): void
+    {
+        $this->crearSedePrueba(sede: '02');
+        $this->simularSysdateOracle('2026-11-10 08:00:00');
+
+        $this->post(route('laboratorio.sede'), ['sede' => '02'])
+            ->assertRedirectToRoute('laboratorio.index')
+            ->assertSessionHas('laboratorio.sede', '02');
+
+        $this->get(route('laboratorio.index'))->assertOk()->assertInertia(fn (Assert $page): Assert => $page
+            ->component('laboratorio')
+            ->where('sede', '02'));
+    }
+
+    public function test_la_sede_que_no_es_suya_lo_devuelve_a_elegir(): void
+    {
+        $this->crearSedePrueba(sede: '02');
+        $this->crearSedePrueba('20396499691', '05');
+
+        $this->post(route('laboratorio.sede'), ['sede' => '05'])
+            ->assertRedirectToRoute('laboratorio.sede.elegir')
+            ->assertSessionHasErrors(['sede' => 'Esa sede no está activa para tu laboratorio.'])
+            ->assertSessionMissing('laboratorio.sede');
+    }
+
+    public function test_vuelve_a_pedir_la_sede_si_la_elegida_deja_de_estar_activa(): void
+    {
+        $this->crearSedePrueba(sede: '02');
+        $this->crearSedePrueba(sede: '03');
+        $this->simularSysdateOracle('2026-11-10 08:00:00');
+
+        $this->withSession(['laboratorio.sede' => '02'])
+            ->get(route('laboratorio.index'))->assertOk();
+
+        DB::table('lab_laboratorios_sedes')->where('codigo_sede', '02')->update(['estado' => 'I']);
+
+        $this->withSession(['laboratorio.sede' => '02'])
+            ->get(route('laboratorio.index'))->assertRedirectToRoute('laboratorio.sede.elegir');
     }
 
     public function test_registra_la_muestra_y_no_sobrescribe_una_toma_repetida(): void

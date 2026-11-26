@@ -48,6 +48,8 @@ class LoginLaboratorioController extends Controller
 
         Auth::guard('laboratorio')->login($acceso);
         $request->session()->regenerate();
+        // Cada sesión elige su sede: la del mostrador anterior no se hereda.
+        $request->session()->forget(['laboratorio', 'consulta_laboratorio']);
 
         return to_route('laboratorio.index');
     }

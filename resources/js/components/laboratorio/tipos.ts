@@ -1,6 +1,11 @@
 import type { EstadoPrueba } from "@/components/serologia/estado-prueba";
 
-export type OpcionLaboratorio = { codigo: string; nombre: string };
+export type OpcionLaboratorio = {
+    codigo: string;
+    nombre: string;
+    direccion: string | null;
+    ciudad: string | null;
+};
 
 export type ResultadoLaboratorio = {
     nombre: string | null;
@@ -30,4 +35,13 @@ export type LaboratorioProps = {
     nombre_sede: string | null;
     hoy: TomaDelDia[];
     resultado: ResultadoLaboratorio | null;
+};
+
+/** Props de la pantalla donde el laboratorio elige la sede antes de entrar al mostrador. */
+export type EleccionSedeProps = {
+    sedes: OpcionLaboratorio[];
+    /** RUC del laboratorio que inició sesión. */
+    laboratorio: string;
+    nombre_laboratorio: string | null;
+    sede: string | null;
 };

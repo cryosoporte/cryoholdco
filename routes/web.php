@@ -8,18 +8,44 @@ use App\Http\Controllers\Reportes\FuenteController;
 use App\Http\Controllers\Serologia\ClienteController;
 use App\Http\Controllers\Serologia\LaboratorioController;
 use App\Http\Controllers\Serologia\SerologiaController;
+<<<<<<< HEAD
 use App\Http\Middleware\LaboratorioConAcceso;
+=======
+<<<<<<< Updated upstream
+=======
+use App\Http\Middleware\LaboratorioConAcceso;
+use App\Http\Middleware\SedeLaboratorioElegida;
+>>>>>>> Stashed changes
+>>>>>>> Pedro
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('serologia')->group(function () {
     Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
     Route::post('/clientes', [ClienteController::class, 'consultar'])->name('clientes.consultar');
 
+<<<<<<< HEAD
     Route::middleware(['auth:laboratorio', LaboratorioConAcceso::class])->group(function () {
         Route::get('/laboratorio', [LaboratorioController::class, 'index'])->name('laboratorio.index');
         Route::post('/laboratorio', [LaboratorioController::class, 'consultar'])->name('laboratorio.consultar');
         Route::post('/laboratorio/marcar', [LaboratorioController::class, 'marcar'])->name('laboratorio.marcar');
         Route::post('/laboratorio/sede', [LaboratorioController::class, 'sede'])->name('laboratorio.sede');
+=======
+<<<<<<< Updated upstream
+    Route::get('/laboratorio', [LaboratorioController::class, 'index'])->name('laboratorio.index');
+    Route::post('/laboratorio', [LaboratorioController::class, 'consultar'])->name('laboratorio.consultar');
+    Route::post('/laboratorio/marcar', [LaboratorioController::class, 'marcar'])->name('laboratorio.marcar');
+    Route::post('/laboratorio/sede', [LaboratorioController::class, 'sede'])->name('laboratorio.sede');
+=======
+    Route::middleware(['auth:laboratorio', LaboratorioConAcceso::class])->group(function () {
+        Route::get('/laboratorio/sede', [LaboratorioController::class, 'elegirSede'])->name('laboratorio.sede.elegir');
+        Route::post('/laboratorio/sede', [LaboratorioController::class, 'sede'])->name('laboratorio.sede');
+
+        Route::middleware(SedeLaboratorioElegida::class)->group(function () {
+            Route::get('/laboratorio', [LaboratorioController::class, 'index'])->name('laboratorio.index');
+            Route::post('/laboratorio', [LaboratorioController::class, 'consultar'])->name('laboratorio.consultar');
+            Route::post('/laboratorio/marcar', [LaboratorioController::class, 'marcar'])->name('laboratorio.marcar');
+        });
+>>>>>>> Pedro
     });
 
     Route::middleware('guest:laboratorio')->group(function () {
@@ -28,6 +54,10 @@ Route::prefix('serologia')->group(function () {
     });
     Route::post('/laboratorio/logout', [LoginLaboratorioController::class, 'destroy'])
         ->middleware('auth:laboratorio')->name('laboratorio.logout');
+<<<<<<< HEAD
+=======
+>>>>>>> Stashed changes
+>>>>>>> Pedro
 });
 
 Route::middleware('guest')->group(function () {

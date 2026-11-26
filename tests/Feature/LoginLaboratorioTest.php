@@ -47,6 +47,17 @@ class LoginLaboratorioTest extends TestCase
         $this->assertGuest('web');
     }
 
+    public function test_al_ingresar_olvida_la_sede_de_una_sesion_anterior(): void
+    {
+        $this->crearAcceso();
+
+        $this->withSession(['laboratorio.sede' => '02', 'consulta_laboratorio' => ['nombre' => 'Consulta anterior']])
+            ->post(route('laboratorio.login.store'), ['ruc' => '20330025213', 'password' => 'secreto123'])
+            ->assertRedirectToRoute('laboratorio.index')
+            ->assertSessionMissing('laboratorio.sede')
+            ->assertSessionMissing('consulta_laboratorio');
+    }
+
     /**
      * @param  array<string, string>  $credenciales
      */
