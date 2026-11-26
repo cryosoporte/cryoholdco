@@ -22,23 +22,7 @@ class LaboratorioController extends Controller
         [$laboratorio, $sede] = $sedeActiva->actual();
 
         return Inertia::render('laboratorio', [
-<<<<<<< HEAD
-            'sedes' => Sede::deLaboratorio($laboratorio)
-=======
-<<<<<<< Updated upstream
-            'laboratorios' => Sede::laboratorios()->map(fn (object $fila): array => [
-                'codigo' => $fila->identificacion,
-                'nombre' => $fila->alias,
-            ])->all(),
-            'sedes' => $laboratorio === null ? [] : Sede::deLaboratorio($laboratorio)
->>>>>>> Pedro
-                ->map(fn (Sede $fila): array => [
-                    'codigo' => $fila->codigo_sede,
-                    'nombre' => $fila->descripcion_sede,
-                ])->all(),
-=======
             'sedes' => $sedeActiva->opciones(),
->>>>>>> Stashed changes
             'laboratorio' => $laboratorio,
             'nombre_laboratorio' => Sede::alias($laboratorio),
             'sede' => $sede,
@@ -137,23 +121,11 @@ class LaboratorioController extends Controller
     {
         $datos = $request->validated();
 
-<<<<<<< HEAD
-        if (! $sedeActiva->elegir($datos['sede'])) {
-            return to_route('laboratorio.index')->withErrors([
-                'sede' => 'Esa sede no está activa para tu laboratorio.',
-=======
-<<<<<<< Updated upstream
-        if (! $sedeActiva->elegir($datos['laboratorio'], $datos['sede'] ?? null)) {
-            return to_route('laboratorio.index')->withErrors([
-                'laboratorio' => 'Ese laboratorio no tiene sedes activas.',
-=======
         if (! $sedeActiva->elegir($datos['sede'])) {
             $destino = $sedeActiva->debeElegir() ? 'laboratorio.sede.elegir' : 'laboratorio.index';
 
             return to_route($destino)->withErrors([
                 'sede' => 'Esa sede no está activa para tu laboratorio.',
->>>>>>> Stashed changes
->>>>>>> Pedro
             ]);
         }
 

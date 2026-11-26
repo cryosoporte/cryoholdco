@@ -13,6 +13,7 @@ use App\Http\Controllers\Serologia\ClienteController;
 use App\Http\Controllers\Serologia\LaboratorioController;
 use App\Http\Controllers\Serologia\SerologiaController;
 use App\Http\Middleware\LaboratorioConAcceso;
+use App\Http\Middleware\SedeLaboratorioElegida;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -23,10 +24,14 @@ Route::prefix('serologia')->group(function () {
     Route::post('/clientes', [ClienteController::class, 'consultar'])->name('clientes.consultar');
 
     Route::middleware(['auth:laboratorio', LaboratorioConAcceso::class])->group(function () {
-        Route::get('/laboratorio', [LaboratorioController::class, 'index'])->name('laboratorio.index');
-        Route::post('/laboratorio', [LaboratorioController::class, 'consultar'])->name('laboratorio.consultar');
-        Route::post('/laboratorio/marcar', [LaboratorioController::class, 'marcar'])->name('laboratorio.marcar');
+        Route::get('/laboratorio/sede', [LaboratorioController::class, 'elegirSede'])->name('laboratorio.sede.elegir');
         Route::post('/laboratorio/sede', [LaboratorioController::class, 'sede'])->name('laboratorio.sede');
+
+        Route::middleware(SedeLaboratorioElegida::class)->group(function () {
+            Route::get('/laboratorio', [LaboratorioController::class, 'index'])->name('laboratorio.index');
+            Route::post('/laboratorio', [LaboratorioController::class, 'consultar'])->name('laboratorio.consultar');
+            Route::post('/laboratorio/marcar', [LaboratorioController::class, 'marcar'])->name('laboratorio.marcar');
+        });
     });
 
     Route::middleware('guest:laboratorio')->group(function () {

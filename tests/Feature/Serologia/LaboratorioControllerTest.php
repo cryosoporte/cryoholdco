@@ -36,21 +36,10 @@ class LaboratorioControllerTest extends TestCase
         ]);
 
         $this->get(route('laboratorio.index'))->assertOk()->assertInertia(fn (Assert $page): Assert => $page
-<<<<<<< HEAD
-            ->component('laboratorio')
-            ->where('laboratorio', '20330025213')
-            ->where('nombre_laboratorio', 'Laboratorio de prueba')
-            ->where('sedes', [['codigo' => '01', 'nombre' => 'Sede 01']])
-=======
-<<<<<<< Updated upstream
-            ->component('laboratorio')->where('laboratorio', null)->where('sede', null)
-            ->where('hoy', [])->where('resultado', null));
-=======
             ->component('laboratorio')
             ->where('laboratorio', '20330025213')
             ->where('nombre_laboratorio', 'Laboratorio de prueba')
             ->where('sedes', [['codigo' => '01', 'nombre' => 'Sede 01', 'direccion' => null, 'ciudad' => 'LIMA']])
->>>>>>> Pedro
             ->where('sede', '01')
             ->where('nombre_sede', 'Sede 01')
             ->missing('laboratorios')
@@ -69,10 +58,7 @@ class LaboratorioControllerTest extends TestCase
         $this->post(route('laboratorio.consultar'), ['codigo' => '12345678'])->assertRedirectToRoute('laboratorio.login');
         $this->post(route('laboratorio.marcar'), ['codigo' => '12345678', 'numero_toma' => 1])->assertRedirectToRoute('laboratorio.login');
         $this->post(route('laboratorio.sede'), ['sede' => '01'])->assertRedirectToRoute('laboratorio.login');
-<<<<<<< HEAD
-=======
         $this->get(route('laboratorio.sede.elegir'))->assertRedirectToRoute('laboratorio.login');
->>>>>>> Pedro
     }
 
     public function test_un_usuario_interno_no_entra_al_mostrador(): void
@@ -106,10 +92,6 @@ class LaboratorioControllerTest extends TestCase
 
         $this->assertGuest('laboratorio');
         $this->assertDatabaseHas('ope_tomas_serologicas', ['numero_toma' => 1, 'fecha_toma' => null]);
-<<<<<<< HEAD
-=======
->>>>>>> Stashed changes
->>>>>>> Pedro
     }
 
     public function test_rechaza_la_busqueda_sin_codigo(): void
@@ -208,14 +190,6 @@ class LaboratorioControllerTest extends TestCase
     public function test_usa_su_unica_sede_aunque_la_guardada_ya_no_este_activa(): void
     {
         $this->crearContratoPrueba();
-<<<<<<< HEAD
-=======
-<<<<<<< Updated upstream
-        $this->crearSedePrueba(sede: '01');
->>>>>>> Pedro
-        $this->crearSedePrueba(sede: '02');
-=======
->>>>>>> Stashed changes
 
         $this->withSession(['laboratorio.sede' => '07'])
             ->post(route('laboratorio.marcar'), ['codigo' => '12345678', 'numero_toma' => 1])

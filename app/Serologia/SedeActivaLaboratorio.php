@@ -9,31 +9,6 @@ use Illuminate\Contracts\Session\Session;
 use Illuminate\Support\Collection;
 
 /**
-<<<<<<< HEAD
- * La sede desde donde trabaja el mostrador. El laboratorio es el que inició sesión;
- * la sede la elige en la pantalla entre sus sedes activas y se guarda en la sesión.
-=======
-<<<<<<< Updated upstream
- * El laboratorio y la sede desde donde trabaja el mostrador, guardados en la sesión.
- *
- * Mientras no exista un inicio de sesión para laboratorios, se eligen a mano en la pantalla.
->>>>>>> Pedro
- */
-class SedeActivaLaboratorio
-{
-    public function __construct(
-        private readonly Session $session,
-        #[CurrentUser('laboratorio')] private readonly UsuarioLaboratorio $laboratorio,
-    ) {}
-
-    /**
-<<<<<<< HEAD
-     * El RUC del laboratorio y la sede vigente. Si la sede guardada ya no está activa
-     * se usa la primera sede activa del laboratorio.
-=======
-     * El laboratorio y la sede vigentes. Si el laboratorio guardado no tiene sedes activas
-     * se usa el primero que tenga; si la sede guardada no es válida, la primera de ese laboratorio.
-=======
  * La sede desde donde trabaja el mostrador. El laboratorio es el que inició sesión;
  * la sede la elige en la pantalla entre sus sedes activas y se guarda en la sesión.
  *
@@ -54,38 +29,11 @@ class SedeActivaLaboratorio
      * El RUC del laboratorio y la sede vigente. La sede es null mientras el
      * laboratorio con varias sedes no haya elegido una, y cuando se quedó sin
      * sedes activas.
->>>>>>> Stashed changes
->>>>>>> Pedro
      *
      * @return array{0: string, 1: ?string}
      */
     public function actual(): array
     {
-<<<<<<< HEAD
-        $ruc = $this->laboratorio->identificacion;
-        $sedes = Sede::deLaboratorio($ruc);
-=======
-<<<<<<< Updated upstream
-        $laboratorio = $this->session->get('laboratorio.ruc', self::LABORATORIO_POR_DEFECTO);
-        $sedes = Sede::deLaboratorio($laboratorio);
-
-        if ($sedes->isEmpty()) {
-            $laboratorio = Sede::laboratorios()->first()?->identificacion;
-            $sedes = $laboratorio ? Sede::deLaboratorio($laboratorio) : collect();
-        }
-
->>>>>>> Pedro
-        $sede = $this->session->get('laboratorio.sede');
-
-        if (! $sedes->firstWhere('codigo_sede', $sede)) {
-            $sede = $sedes->first()?->codigo_sede;
-        }
-
-<<<<<<< HEAD
-        return [$ruc, $sede];
-=======
-        return [$laboratorio, $sede];
-=======
         return [$this->laboratorio->identificacion, $this->sede()];
     }
 
@@ -95,8 +43,6 @@ class SedeActivaLaboratorio
     public function debeElegir(): bool
     {
         return $this->sede() === null && $this->sedes()->isNotEmpty();
->>>>>>> Stashed changes
->>>>>>> Pedro
     }
 
     /**
@@ -105,17 +51,7 @@ class SedeActivaLaboratorio
      */
     public function elegir(string $sede): bool
     {
-<<<<<<< HEAD
-        if (! Sede::deLaboratorio($this->laboratorio->identificacion)->firstWhere('codigo_sede', $sede)) {
-=======
-<<<<<<< Updated upstream
-        $sedes = Sede::deLaboratorio($laboratorio);
-
-        if ($sedes->isEmpty()) {
-=======
         if (! $this->sedes()->firstWhere('codigo_sede', $sede)) {
->>>>>>> Stashed changes
->>>>>>> Pedro
             return false;
         }
 
