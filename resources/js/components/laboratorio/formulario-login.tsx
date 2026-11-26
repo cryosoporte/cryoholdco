@@ -32,7 +32,7 @@ export function FormularioLogin() {
                     <h1>Ingresa al mostrador</h1>
                 </CardTitle>
                 <CardDescription>
-                    Usa el RUC del laboratorio y la contraseña que te dio
+                    Usa el RUC de tu laboratorio y la contraseña que te dio
                     Criocord.
                 </CardDescription>
             </CardHeader>
