@@ -90,6 +90,7 @@ class ListadoSerologia
                     ->on('C1.NO_CIA', '=', 'U.EMPRESA');
             })
             ->where('C1.NO_CIA', $empresa)
+            ->where('C1.ESTADO_CONTRATO', 'CON')
             ->whereIn('C1.SERVICIO', AlcanceSerologia::SERVICIOS)
             ->whereRaw(
                 "C1.FECHA_CONTRATO >= TO_DATE(?, 'DD/MM/YYYY')",
