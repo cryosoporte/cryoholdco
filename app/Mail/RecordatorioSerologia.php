@@ -16,7 +16,7 @@ class RecordatorioSerologia extends Mailable
     /**
      * Create a new message instance.
      */
-    public function __construct(public string $nombre) {}
+    public function __construct(public string $numeroBase) {}
 
     /**
      * Get the message envelope.
@@ -34,7 +34,9 @@ class RecordatorioSerologia extends Mailable
     public function content(): Content
     {
         return new Content(
-            markdown: 'emails.recordatorio-serologia',
+            view: 'emails.recordatorio-serologia',
+            text: 'emails.recordatorio-serologia-texto',
+            with: ['enlacePortal' => route('clientes.index')],
         );
     }
 

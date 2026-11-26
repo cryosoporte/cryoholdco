@@ -1,0 +1,64 @@
+import { CheckIcon, CornerDownLeftIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { pasos } from "./configuracion";
+import type { EstadoLiquidacion, Liquidacion } from "./tipos";
+
+const pasoActual: Record<EstadoLiquidacion, number> = {
+    borrador: 0,
+    enviada: 1,
+    rechazada: 1,
+    aprobada: 2,
+    enviada_personal: 3,
+};
+
+/** Sin `conDetalle` los pasos solo dicen en qué estado están, sin cifras de la base, nombres ni correos. */
+export function PasosLiquidacion({ liquidacion, conDetalle }: { liquidacion: Liquidacion; conDetalle: boolean }) {
+    const actual = pasoActual[liquidacion.estado];
+    const aprobacion = liquidacion.historial.find((evento) => evento.tipo === "aprobada");
+    const rechazado = liquidacion.estado === "rechazada";
+    const enviados = liquidacion.envios.filter((envio) => envio.estado === "enviado").length;
+    const detalles = [
+        conDetalle && liquidacion.base !== null
+            ? `${liquidacion.base.filas.toLocaleString("es-PE")} filas de ${liquidacion.base.fuente}`
+            : "Cálculo del período",
+        rechazado ? "Devuelta por gerencia" : actual >= 1 ? "Correo enviado a gerencia" : "Pendiente de procesar",
+        actual >= 2 ? (conDetalle && aprobacion ? `Por ${aprobacion.por}` : "Aprobada") : "Pendiente de aprobación",
+        actual >= 3
+            ? (conDetalle ? `${enviados} de ${liquidacion.envios.length} correos` : "Correos enviados")
+            : actual === 2 ? "Pendiente de envío por Administración" : "Después de la aprobación",
+    ];
+
+    return (
+        <ol aria-label="Progreso de la liquidación" className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border bg-border md:grid-cols-4">
+            {Object.values(pasos).map((paso, indice) => {
+                const devuelto = rechazado && indice === 1;
+                const completo = indice <= actual && !devuelto;
+
+                return (
+                    <li
+                        key={paso}
+                        aria-current={indice === actual ? "step" : undefined}
+                        className={cn(
+                            "flex min-w-0 items-start gap-3 bg-card px-4 py-3",
+                            indice === actual && "border-l-2 border-l-primary md:border-l-0 md:border-t-2 md:border-t-primary",
+                            devuelto && "border-l-amber-500 md:border-t-amber-500",
+                        )}
+                    >
+                        <span aria-hidden="true" className={cn(
+                            "flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium",
+                            completo && "border-primary/20 bg-primary/10 text-primary",
+                            devuelto && "border-amber-600/30 bg-amber-500/10 text-amber-800 dark:text-amber-300",
+                            !completo && !devuelto && "text-muted-foreground",
+                        )}>
+                            {devuelto ? <CornerDownLeftIcon className="size-3.5" /> : completo ? <CheckIcon className="size-3.5" /> : indice + 1}
+                        </span>
+                        <div>
+                            <p className="text-sm font-semibold">{paso}</p>
+                            <p className="text-xs leading-5 text-muted-foreground">{detalles[indice]}</p>
+                        </div>
+                    </li>
+                );
+            })}
+        </ol>
+    );
+}

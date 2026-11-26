@@ -39,6 +39,21 @@ return [
     |
     */
 
-    'filas_por_bloque' => 100,
+    'filas_por_bloque' => (int) env('REPORTES_FILAS_POR_BLOQUE', 100),
+    'cargas_asincronas' => env('REPORTES_CARGAS_ASINCRONAS', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Comisiones
+    |--------------------------------------------------------------------------
+    |
+    | La pausa antes de cada correo al personal respeta el límite de frecuencia
+    | del sandbox de Mailtrap.
+    |
+    */
+
+    'comisiones' => [
+        'pausa_envio_ms' => (int) env('REPORTES_COMISIONES_PAUSA_ENVIO_MS', 11000),
+    ],
 
 ];

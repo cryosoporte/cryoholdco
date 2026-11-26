@@ -1,8 +1,11 @@
+import { usePage } from "@inertiajs/react";
 import AppLayout from "@/layouts/app-layout";
 import { AccesosModulos } from "@/components/operaciones/accesos-modulos";
-import { modulosAdministracion } from "@/components/administracion/modulos";
+import { modulosAdministracionVisibles } from "@/components/administracion/modulos";
 
 export default function Administracion() {
+    const { rutasAdministracion } = usePage().props;
+
     return (
         <AppLayout title="Administración">
             <div className="space-y-6">
@@ -12,7 +15,9 @@ export default function Administracion() {
                         Selecciona un módulo para continuar.
                     </p>
                 </div>
-                <AccesosModulos modulos={modulosAdministracion} />
+                <AccesosModulos
+                    modulos={modulosAdministracionVisibles(rutasAdministracion)}
+                />
             </div>
         </AppLayout>
     );

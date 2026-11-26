@@ -17,10 +17,15 @@ declare module "@inertiajs/core" {
             assetUrl: string;
             empresa: string | null;
             user: UsuarioCompartido | null;
+            roles: string[];
+            permisosEfectivos: string[];
+            rutasAdministracion: string[];
+            rutasReportes: string[];
         };
         flashDataType: {
-            carga?: { archivo: string; filas: number };
             fuenteCargada?: { fuente: string; filas: number };
+            cargaFuenteRecibida?: string;
+            comisiones?: { tipo: "exito" | "aviso"; titulo: string; descripcion: string };
         };
     }
 }

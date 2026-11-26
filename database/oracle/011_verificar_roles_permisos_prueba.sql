@@ -1,0 +1,52 @@
+-- =============================================================================
+-- ICTC: verificación de solo lectura de roles y permisos PRUEBA_.
+-- Antes de instalar, ejecutar el bloque de asignaciones y metadatos.
+-- Después de instalar, ejecutar el archivo completo.
+-- =============================================================================
+
+-- Cuatro filas esperadas. Comparar también las fechas antes y después.
+SELECT r.USER_ID, u.EMAIL, u.EMPRESA, r.ROL,
+       TO_CHAR(r.FECHA_ASIGNACION, 'YYYY-MM-DD HH24:MI:SS') AS FECHA_ASIGNACION
+  FROM ICTC.PRUEBA_USUARIO_ROL r
+  LEFT JOIN ICTC.USERS u ON u.ID = r.USER_ID
+ ORDER BY r.USER_ID, r.ROL;
+
+-- Restricciones de las cuatro tablas. Después de instalar, debe figurar
+-- PRUEBA_USUARIO_ROL_ROL_FK habilitada y validada en lugar del CHECK anterior.
+SELECT c.TABLE_NAME, c.CONSTRAINT_NAME, c.CONSTRAINT_TYPE, c.STATUS, c.VALIDATED,
+       cp.COLUMN_NAME, p.TABLE_NAME AS TABLA_REFERIDA, pp.COLUMN_NAME AS COLUMNA_REFERIDA
+  FROM ALL_CONSTRAINTS c
+  LEFT JOIN ALL_CONS_COLUMNS cp
+    ON cp.OWNER = c.OWNER AND cp.CONSTRAINT_NAME = c.CONSTRAINT_NAME
+  LEFT JOIN ALL_CONSTRAINTS p
+    ON p.OWNER = c.R_OWNER AND p.CONSTRAINT_NAME = c.R_CONSTRAINT_NAME
+  LEFT JOIN ALL_CONS_COLUMNS pp
+    ON pp.OWNER = p.OWNER AND pp.CONSTRAINT_NAME = p.CONSTRAINT_NAME AND pp.POSITION = cp.POSITION
+ WHERE c.OWNER = 'ICTC'
+   AND c.TABLE_NAME IN ('PRUEBA_USUARIO_ROL', 'PRUEBA_ROL', 'PRUEBA_ROL_PERMISO', 'PRUEBA_SEGURIDAD_EVENTO')
+ ORDER BY c.TABLE_NAME, c.CONSTRAINT_NAME, cp.POSITION;
+
+SELECT SEQUENCE_NAME, INCREMENT_BY
+  FROM ALL_SEQUENCES
+ WHERE SEQUENCE_OWNER = 'ICTC'
+   AND SEQUENCE_NAME = 'PRUEBA_SEGURIDAD_EVENTO_SEQ';
+
+SELECT t.TRIGGER_NAME, t.TABLE_NAME, t.STATUS AS ESTADO_TRIGGER, o.STATUS AS ESTADO_OBJETO
+  FROM ALL_TRIGGERS t
+  JOIN ALL_OBJECTS o
+    ON o.OWNER = t.OWNER AND o.OBJECT_NAME = t.TRIGGER_NAME AND o.OBJECT_TYPE = 'TRIGGER'
+ WHERE t.OWNER = 'ICTC'
+   AND t.TRIGGER_NAME = 'PRUEBA_SEGURIDAD_EVENTO_BI';
+
+-- Consultas posteriores a la instalación. Deben salir dos roles, nueve
+-- permisos y cero eventos al instalar.
+SELECT CODIGO, NOMBRE, DESCRIPCION, ES_SISTEMA,
+       TO_CHAR(FECHA_CREACION, 'YYYY-MM-DD HH24:MI:SS') AS FECHA_CREACION
+  FROM ICTC.PRUEBA_ROL
+ ORDER BY CODIGO;
+
+SELECT ROL, PERMISO
+  FROM ICTC.PRUEBA_ROL_PERMISO
+ ORDER BY ROL, PERMISO;
+
+SELECT COUNT(*) AS EVENTOS FROM ICTC.PRUEBA_SEGURIDAD_EVENTO;

@@ -3,14 +3,19 @@
 namespace Tests;
 
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Models\FuenteCarga;
+use App\Models\User;
 use App\Reportes\Fuentes\CatalogoFuentes;
+use App\Reportes\Fuentes\FuenteConColumnasCalculadas;
 use App\Reportes\Fuentes\FuenteFacturasOracle;
 use App\Reportes\Fuentes\TipoColumna;
 use Carbon\CarbonImmutable;
+use Database\Factories\UserFactory;
 use DateTimeInterface;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
@@ -22,6 +27,111 @@ use PDO;
 
 abstract class TestCase extends BaseTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $esquema = Schema::connection('sqlite');
+
+        $esquema->create('rol', function (Blueprint $table): void {
+            $table->string('codigo', 30)->primary();
+            $table->string('nombre', 60)->unique();
+            $table->string('descripcion', 300)->nullable();
+            $table->enum('es_sistema', ['S', 'N'])->default('N');
+            $table->dateTime('fecha_creacion')->useCurrent();
+        });
+
+        $esquema->create('rol_permiso', function (Blueprint $table): void {
+            $table->string('rol', 30);
+            $table->string('permiso', 60);
+            $table->primary(['rol', 'permiso']);
+            $table->foreign('rol')->references('codigo')->on('rol');
+        });
+
+        $esquema->create('usuario_rol', function (Blueprint $table): void {
+            $table->unsignedInteger('user_id');
+            $table->string('rol', 30);
+            $table->dateTime('fecha_asignacion')->useCurrent();
+            $table->primary(['user_id', 'rol']);
+            $table->foreign('rol')->references('codigo')->on('rol');
+        });
+
+        $esquema->create('seguridad_evento', function (Blueprint $table): void {
+            $table->increments('id');
+            $table->enum('accion', ['ROL_CREADO', 'ROL_EDITADO', 'ROL_ELIMINADO', 'PERMISOS_ROL', 'ROLES_USUARIO']);
+            $table->string('rol', 30)->nullable();
+            $table->string('usuarios', 200)->nullable();
+            $table->string('detalle', 4000)->nullable();
+            $table->unsignedInteger('autor_id');
+            $table->string('autor_nombre', 255);
+            $table->string('autor_empresa', 20)->nullable();
+            $table->dateTime('fecha')->index();
+        });
+
+        $conexion = DB::connection('sqlite');
+        $conexion->table('rol')->insert([
+            ['codigo' => 'ADMINISTRADOR', 'nombre' => 'Administrador', 'es_sistema' => 'S'],
+            ['codigo' => 'GERENCIA', 'nombre' => 'Gerencia', 'es_sistema' => 'N'],
+        ]);
+        $conexion->table('rol_permiso')->insert([
+            ['rol' => 'ADMINISTRADOR', 'permiso' => 'administracion.laboratorios'],
+            ['rol' => 'ADMINISTRADOR', 'permiso' => 'administracion.usuarios'],
+            ['rol' => 'ADMINISTRADOR', 'permiso' => 'administracion.roles'],
+            ['rol' => 'ADMINISTRADOR', 'permiso' => 'comisiones.ver'],
+            ['rol' => 'ADMINISTRADOR', 'permiso' => 'comisiones.procesar'],
+            ['rol' => 'ADMINISTRADOR', 'permiso' => 'comisiones.enviar'],
+            ['rol' => 'ADMINISTRADOR', 'permiso' => 'comisiones.ver_detalle'],
+            ['rol' => 'GERENCIA', 'permiso' => 'comisiones.ver'],
+            ['rol' => 'GERENCIA', 'permiso' => 'comisiones.aprobar'],
+            ['rol' => 'GERENCIA', 'permiso' => 'comisiones.rechazar'],
+        ]);
+    }
+
+    protected function asignarRol(int $usuarioId, string $rol): void
+    {
+        DB::connection('sqlite')->table('usuario_rol')->insert(['user_id' => $usuarioId, 'rol' => $rol]);
+    }
+
+    /** @param list<string> $permisos */
+    protected function crearRol(string $codigo, array $permisos): void
+    {
+        $conexion = DB::connection('sqlite');
+        $conexion->table('rol')->insert(['codigo' => $codigo, 'nombre' => $codigo]);
+        $conexion->table('rol_permiso')->insert(array_map(
+            fn (string $permiso): array => ['rol' => $codigo, 'permiso' => $permiso],
+            $permisos,
+        ));
+    }
+
+    protected function prepararUsuarios(): void
+    {
+        Schema::create('users', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name');
+            $table->string('email');
+            $table->string('empresa', 3);
+            $table->string('identificacion')->nullable();
+            $table->string('password');
+            $table->timestamp('email_verified_at')->nullable();
+            $table->rememberToken();
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * @param  array<string, string>  $correosPorEmpresa
+     * @return Collection<string, User>
+     */
+    protected function crearPersonaUsuario(string $nombre, ?string $dni, array $correosPorEmpresa): Collection
+    {
+        return collect($correosPorEmpresa)->map(fn (string $correo, string $empresa): User => UserFactory::new()->create([
+            'name' => $nombre,
+            'identificacion' => $dni,
+            'email' => $correo,
+            'empresa' => $empresa,
+        ]));
+    }
+
     /**
      * Escribe un .xlsx temporal con una fila por elemento de $filas (la primera
      * suele ser la de encabezados) y devuelve su ruta. Las fechas se escriben
@@ -77,8 +187,12 @@ abstract class TestCase extends BaseTestCase
         ]);
 
         foreach ((new CatalogoFuentes)->todas() as $fuente) {
-            Schema::create($fuente->tabla(), function (Blueprint $table) use ($fuente): void {
-                foreach ($fuente->columnas() as $columna) {
+            $columnas = $fuente instanceof FuenteConColumnasCalculadas
+                ? [...$fuente->columnas(), ...$fuente->columnasCalculadas()]
+                : $fuente->columnas();
+
+            Schema::create($fuente->tabla(), function (Blueprint $table) use ($columnas): void {
+                foreach ($columnas as $columna) {
                     $definicion = match ($columna->tipo) {
                         TipoColumna::Entero => $table->bigInteger($columna->columna),
                         TipoColumna::Decimal => $table->decimal($columna->columna, $columna->precision, $columna->escala),
@@ -92,13 +206,136 @@ abstract class TestCase extends BaseTestCase
         }
     }
 
-    protected function prepararPruebaComisiones(): void
+    protected function prepararCargasFuentes(): void
     {
-        Schema::create('prueba_comisiones', function (Blueprint $table): void {
-            $table->unsignedBigInteger('id_interno')->primary();
-            $table->string('numero_documento', 20)->nullable();
-            $table->dateTime('fecha_emision')->nullable();
-            $table->decimal('importe', 14, 2)->nullable();
+        Schema::create((new FuenteCarga)->getTable(), function (Blueprint $table): void {
+            $table->id();
+            $table->string('codigo_fuente', 30);
+            $table->char('estado', 1);
+            $table->string('archivo', 255);
+            $table->string('ruta_archivo', 150)->nullable();
+            $table->unsignedInteger('filas')->nullable();
+            $table->string('mensaje', 4000)->nullable();
+            $table->string('cargado_por', 100);
+            $table->string('usuario_id', 100);
+            $table->dateTime('fecha_recepcion');
+            $table->dateTime('fecha_inicio')->nullable();
+            $table->dateTime('fecha_fin')->nullable();
+        });
+    }
+
+    /**
+     * Crea en SQLite las tablas de configuración de comisiones que mantiene
+     * el área en Oracle: metas, tramos y línea de cada servicio.
+     */
+    protected function prepararComisiones(): void
+    {
+        Schema::create('com_meta', function (Blueprint $table): void {
+            $table->integer('meta_id')->primary();
+            $table->string('rol_cod', 60);
+            $table->string('atribucion', 20);
+            $table->string('linea_cod', 20);
+            $table->char('periodicidad', 1);
+            $table->string('tipo_cod', 20);
+            $table->string('base_tramo', 10);
+            $table->decimal('minimo', 14, 2);
+            $table->dateTime('vig_desde');
+            $table->dateTime('vig_hasta')->nullable();
+            $table->char('estado', 1);
+            $table->string('origen', 60)->nullable();
+            $table->string('observacion', 300)->nullable();
+        });
+        Schema::create('com_meta_tramo', function (Blueprint $table): void {
+            $table->integer('meta_id');
+            $table->integer('nro_tramo');
+            $table->decimal('desde', 14, 2);
+            $table->decimal('hasta', 14, 2)->nullable();
+            $table->decimal('valor', 14, 4);
+        });
+        Schema::create('com_servicio_linea', function (Blueprint $table): void {
+            $table->string('servicio', 100)->primary();
+            $table->string('linea_cod', 20);
+        });
+        Schema::create('users', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name');
+            $table->string('email')->nullable();
+            $table->string('identificacion')->nullable();
+            $table->string('empresa', 3)->nullable();
+            $table->string('codigo_netsuite', 150)->nullable();
+            $table->string('rol_netsuite', 60)->nullable();
+        });
+    }
+
+    protected function prepararLiquidaciones(): void
+    {
+        Schema::create('com_liq', function (Blueprint $table): void {
+            $table->id();
+            $table->string('periodo', 7);
+            $table->char('tipo', 1);
+            $table->string('estado', 20);
+            $table->date('fecha_desde');
+            $table->date('fecha_hasta');
+            $table->decimal('total', 14, 2);
+            $table->unsignedInteger('carga_id')->nullable();
+            $table->text('desglose');
+            $table->dateTime('fecha_creacion');
+        });
+        DB::statement("CREATE UNIQUE INDEX com_liq_activa_ux ON com_liq (periodo) WHERE estado <> 'RECHAZADA'");
+
+        Schema::create('com_liq_detalle', function (Blueprint $table): void {
+            $table->foreignId('liq_id')->constrained('com_liq');
+            $table->unsignedInteger('user_id');
+            $table->unsignedInteger('meta_id');
+            $table->string('nombre', 150);
+            $table->string('codigo_netsuite', 150);
+            $table->string('rol_netsuite', 100);
+            $table->string('linea', 30);
+            $table->string('atribucion', 20);
+            $table->string('tipo_meta', 20);
+            $table->string('base_tramo', 20);
+            $table->decimal('minimo', 14, 2);
+            $table->integer('cantidad');
+            $table->decimal('monto', 14, 2);
+            $table->decimal('tramo_desde', 14, 2)->nullable();
+            $table->decimal('tramo_hasta', 14, 2)->nullable();
+            $table->decimal('tramo_valor', 14, 4)->nullable();
+            $table->decimal('comision', 14, 2);
+            $table->decimal('adelanto', 14, 2)->nullable();
+            $table->decimal('pendiente', 14, 2)->nullable();
+            $table->decimal('a_pagar', 14, 2);
+            $table->primary(['liq_id', 'user_id', 'meta_id']);
+        });
+        Schema::create('com_liq_contrato', function (Blueprint $table): void {
+            $table->foreignId('liq_id')->constrained('com_liq');
+            $table->unsignedInteger('user_id');
+            $table->string('linea', 30);
+            $table->string('numero_contrato', 50);
+            $table->string('servicio', 200)->nullable();
+            $table->date('fecha_emision');
+            $table->decimal('monto', 14, 2);
+            $table->integer('filas');
+            $table->index(['liq_id', 'user_id', 'linea']);
+        });
+        Schema::create('com_liq_evento', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('liq_id')->constrained('com_liq');
+            $table->string('accion', 20);
+            $table->unsignedInteger('user_id');
+            $table->string('nombre', 150);
+            $table->string('empresa', 3);
+            $table->string('comentario', 1000)->nullable();
+            $table->dateTime('fecha');
+        });
+        Schema::create('com_liq_envio', function (Blueprint $table): void {
+            $table->foreignId('liq_id')->constrained('com_liq');
+            $table->unsignedInteger('user_id');
+            $table->string('correo', 150);
+            $table->char('estado', 1);
+            $table->integer('intentos')->default(0);
+            $table->dateTime('fecha_envio')->nullable();
+            $table->string('error', 1000)->nullable();
+            $table->primary(['liq_id', 'user_id']);
         });
     }
 

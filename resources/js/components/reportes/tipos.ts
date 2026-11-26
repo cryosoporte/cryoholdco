@@ -11,4 +11,22 @@ export type FuenteDatos = {
     actualizado_por: string | null;
     filas: number | null;
     archivo: string | null;
+    ultima_carga: CargaFuente | null;
 };
+
+export type CargaFuente = {
+    estado: "P" | "E" | "C" | "F";
+    filas: number | null;
+    mensaje: string | null;
+};
+
+export function hayCargaActiva(fuente: FuenteDatos): boolean {
+    const estado = fuente.ultima_carga?.estado;
+
+    return estado === "P" || estado === "E";
+}
+
+export type ActualizacionFuente = Pick<
+    FuenteDatos,
+    "codigo" | "nombre" | "fecha_actualizacion" | "actualizado_por"
+>;

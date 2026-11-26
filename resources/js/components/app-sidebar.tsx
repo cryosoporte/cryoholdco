@@ -9,8 +9,9 @@ import {
 } from "lucide-react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
-import { modulosAdministracion } from "@/components/administracion/modulos";
+import { modulosAdministracionVisibles } from "@/components/administracion/modulos";
 import { modulosOperaciones } from "@/components/operaciones/modulos";
+import { modulosReportesVisibles } from "@/components/reportes/modulos";
 import {
     Sidebar,
     SidebarContent,
@@ -22,7 +23,10 @@ import {
 } from "@/components/ui/sidebar";
 
 export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
-    const { assetUrl, empresa, user } = usePage().props;
+    const { assetUrl, empresa, user, rutasAdministracion, rutasReportes } =
+        usePage().props;
+    const modulosAdministracion =
+        modulosAdministracionVisibles(rutasAdministracion);
     const enlaces = [
         { title: "Inicio", url: route("home"), icon: <LayoutDashboardIcon /> },
         {
@@ -36,21 +40,31 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
                     url: route(modulo.ruta),
                 })),
         },
+        ...(modulosAdministracion.length > 0
+            ? [
+                  {
+                      title: "Administración",
+                      url: route("administracion"),
+                      icon: <ShieldCheckIcon />,
+                      items: modulosAdministracion
+                          .filter((modulo) => modulo.enMenuLateral)
+                          .map((modulo) => ({
+                              title: modulo.titulo,
+                              url: route(modulo.ruta),
+                          })),
+                  },
+              ]
+            : []),
         {
-            title: "Administración",
-            url: route("administracion"),
-            icon: <ShieldCheckIcon />,
-            items: modulosAdministracion
+            title: "Reportes",
+            url: route("reportes"),
+            icon: <ChartBarBig />,
+            items: modulosReportesVisibles(rutasReportes)
                 .filter((modulo) => modulo.enMenuLateral)
                 .map((modulo) => ({
                     title: modulo.titulo,
                     url: route(modulo.ruta),
                 })),
-        },
-        {
-            title: "Reportes",
-            url: route("reportes"),
-            icon: <ChartBarBig />,
         },
     ];
 

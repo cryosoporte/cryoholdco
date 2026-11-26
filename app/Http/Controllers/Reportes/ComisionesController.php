@@ -3,30 +3,41 @@
 namespace App\Http\Controllers\Reportes;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Reportes\CargarDataTestRequest;
-use App\Reportes\ImportarPruebaComisiones;
-use App\Reportes\LectorCsvNetsuite;
-use Illuminate\Http\RedirectResponse;
+use App\Http\Requests\Reportes\FiltrarLiquidacionesRequest;
+use App\Models\FuenteDatos;
+use App\Reportes\Comisiones\DatosRealesComisiones;
+use App\Reportes\Comisiones\LiquidacionesComisiones;
+use App\Reportes\Fuentes\FuenteFacturasOracle;
+use Illuminate\Support\Arr;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ComisionesController extends Controller
 {
-    public function index(): Response
+    private const FUENTE = FuenteFacturasOracle::CODIGO;
+
+    public function index(FiltrarLiquidacionesRequest $request, LiquidacionesComisiones $liquidaciones, DatosRealesComisiones $datos): Response
     {
-        return Inertia::render('comisiones');
+        $anio = $request->anio($datos);
+        $puedeVerDetalle = $request->user()->can('comisiones.ver_detalle');
+
+        return Inertia::render('comisiones', [
+            'fuente' => $puedeVerDetalle ? self::actualizacionFuente() : null,
+            'puede_ver_detalle' => $puedeVerDetalle,
+            'liquidaciones' => $liquidaciones->historial($datos, $anio),
+            'anio' => $anio === null ? FiltrarLiquidacionesRequest::TODOS : (string) $anio,
+            'anios' => array_map('strval', $datos->aniosDisponibles()),
+        ]);
     }
 
-    public function cargar(CargarDataTestRequest $request, LectorCsvNetsuite $lector, ImportarPruebaComisiones $importador): RedirectResponse
+    /** @return array{codigo: string, nombre: string, fecha_actualizacion: ?string, actualizado_por: ?string}|null */
+    public static function actualizacionFuente(): ?array
     {
-        $archivo = $request->file('archivo');
-        $guardadas = $importador->importar($lector->leer($archivo->getRealPath()));
+        $fuente = FuenteDatos::porCodigo(self::FUENTE);
 
-        Inertia::flash('carga', [
-            'archivo' => $archivo->getClientOriginalName(),
-            'filas' => $guardadas,
-        ]);
-
-        return to_route('reportes.comisiones');
+        return $fuente === null ? null : Arr::only(
+            $fuente->datosActualizacion(),
+            ['codigo', 'nombre', 'fecha_actualizacion', 'actualizado_por'],
+        );
     }
 }

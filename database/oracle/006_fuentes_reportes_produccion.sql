@@ -1,0 +1,146 @@
+-- =============================================================================
+-- ICTC: fuentes de Reportes en produccion. Ejecutar como ICTC en modo script.
+-- Si hay un error, revisar los objetos creados antes de reintentar.
+-- Verificacion: 007_verificacion_fuentes_reportes_produccion.sql.
+-- =============================================================================
+
+WHENEVER SQLERROR EXIT SQL.SQLCODE ROLLBACK
+
+DECLARE
+    v_existentes NUMBER;
+BEGIN
+    IF USER <> 'ICTC' OR SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') <> 'ICTC' THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Ejecutar desde una sesion del esquema ICTC.');
+    END IF;
+
+    SELECT (SELECT COUNT(*) FROM user_objects
+             WHERE object_name IN ('FUENTES_DATOS', 'FUENTE_FACTURAS_ORACLE',
+                                   'FUENTES_CARGAS', 'FUENTES_DATOS_PK',
+                                   'FFO_EMISION_IX', 'FFO_ID_INTERNO_IX',
+                                   'FUENTES_CARGAS_PK', 'FC_FUENTE_IX',
+                                   'FUENTES_CARGAS_SEQ', 'FUENTES_CARGAS_BI'))
+         + (SELECT COUNT(*) FROM user_constraints
+             WHERE constraint_name IN ('FUENTES_DATOS_PK', 'FUENTES_CARGAS_PK',
+                                       'FC_ESTADO_CK', 'FC_FUENTE_FK'))
+      INTO v_existentes
+      FROM dual;
+
+    IF v_existentes > 0 THEN
+        RAISE_APPLICATION_ERROR(-20002, 'Ya existen objetos o restricciones de Reportes.');
+    END IF;
+END;
+/
+
+CREATE TABLE ICTC.FUENTES_DATOS (
+    CODIGO               VARCHAR2(30 BYTE)   NOT NULL,
+    NOMBRE               VARCHAR2(100 BYTE)  NOT NULL,
+    FECHA_ACTUALIZACION  DATE,
+    ACTUALIZADO_POR      VARCHAR2(100 BYTE),
+    FILAS                NUMBER(10),
+    ARCHIVO              VARCHAR2(255 BYTE),
+    CONSTRAINT FUENTES_DATOS_PK PRIMARY KEY (CODIGO)
+);
+
+CREATE TABLE ICTC.FUENTE_FACTURAS_ORACLE (
+    ID_INTERNO              NUMBER(10)     NOT NULL,
+    ID_EXTERNO              VARCHAR2(50 BYTE),
+    SUBSIDIARIA             VARCHAR2(150 BYTE),
+    NUMERO_TRANSACCION      VARCHAR2(50 BYTE),
+    NUMERO_DOCUMENTO        VARCHAR2(50 BYTE),
+    ESTADO                  VARCHAR2(50 BYTE),
+    FECHA_EMISION           DATE,
+    CLIENTE                 VARCHAR2(200 BYTE),
+    NOTA                    VARCHAR2(500 BYTE),
+    ARTICULO                VARCHAR2(200 BYTE),
+    NOMBRE_MOSTRAR          VARCHAR2(200 BYTE),
+    SERVICIO                VARCHAR2(200 BYTE),
+    NUMERO_CONTRATO_ORACLE  VARCHAR2(50 BYTE),
+    NUMERO_CONTRATO_A2IN    VARCHAR2(50 BYTE),
+    TIPO_DOCUMENTO          VARCHAR2(100 BYTE),
+    TIPO_OPERACION          VARCHAR2(200 BYTE),
+    CONDICION_PAGO          VARCHAR2(100 BYTE),
+    PDF_GENERADO            VARCHAR2(500 BYTE),
+    DOCUMENTO_CERTIFICADO   VARCHAR2(500 BYTE),
+    NOTAS                   VARCHAR2(1000 BYTE),
+    MONEDA                  VARCHAR2(50 BYTE),
+    TIPO_CAMBIO             NUMBER(12,6),
+    SUBTOTAL                NUMBER(14,2),
+    IMPUESTO                NUMBER(14,2),
+    IMPORTE                 NUMBER(14,2),
+    SUBTOTAL_SOLES          NUMBER(14,2),
+    IMPUESTO_SOLES          NUMBER(14,2),
+    IMPORTE_SOLES           NUMBER(14,2),
+    CREADO_POR              VARCHAR2(150 BYTE),
+    FECHA_CREACION          DATE,
+    APLICACION_TRANSACCION  VARCHAR2(200 BYTE),
+    DUENO                   VARCHAR2(150 BYTE),
+    REPRESENTANTE_VENTAS    VARCHAR2(150 BYTE),
+    SERIE                   VARCHAR2(10 BYTE),
+    CONSECUTIVO             VARCHAR2(20 BYTE),
+    SEGURIDAD_TOTAL         VARCHAR2(10 BYTE),
+    FECHA_ALTA              DATE,
+    CONTADOR                NUMBER(2),
+    FACTURA_RELACIONADA     VARCHAR2(50 BYTE),
+    CAPTADOR_FINAL          VARCHAR2(150 BYTE),
+    CANAL_CAPTACION         VARCHAR2(100 BYTE),
+    CAPTACION_ORIGEN        VARCHAR2(100 BYTE),
+    FICHA_CAPTACION         VARCHAR2(100 BYTE),
+    FECHA_NACIMIENTO        DATE,
+    INICIO_COBERTURA        DATE,
+    FIN_COBERTURA           DATE
+);
+
+CREATE INDEX ICTC.FFO_EMISION_IX ON ICTC.FUENTE_FACTURAS_ORACLE (FECHA_EMISION);
+CREATE INDEX ICTC.FFO_ID_INTERNO_IX ON ICTC.FUENTE_FACTURAS_ORACLE (ID_INTERNO);
+
+CREATE TABLE ICTC.FUENTES_CARGAS (
+    ID              NUMBER(10)          NOT NULL,
+    CODIGO_FUENTE   VARCHAR2(30 BYTE)   NOT NULL,
+    ESTADO          CHAR(1 BYTE)        NOT NULL,
+    ARCHIVO         VARCHAR2(255 BYTE) NOT NULL,
+    RUTA_ARCHIVO    VARCHAR2(150 BYTE),
+    FILAS           NUMBER(10),
+    MENSAJE         VARCHAR2(4000 BYTE),
+    CARGADO_POR     VARCHAR2(100 BYTE) NOT NULL,
+    USUARIO_ID      VARCHAR2(100 BYTE) NOT NULL,
+    FECHA_RECEPCION DATE                NOT NULL,
+    FECHA_INICIO    DATE,
+    FECHA_FIN       DATE,
+    CONSTRAINT FUENTES_CARGAS_PK PRIMARY KEY (ID),
+    CONSTRAINT FC_ESTADO_CK CHECK (ESTADO IN ('P', 'E', 'C', 'F')),
+    CONSTRAINT FC_FUENTE_FK FOREIGN KEY (CODIGO_FUENTE) REFERENCES ICTC.FUENTES_DATOS (CODIGO)
+);
+
+CREATE INDEX ICTC.FC_FUENTE_IX ON ICTC.FUENTES_CARGAS (CODIGO_FUENTE, ID);
+
+CREATE SEQUENCE ICTC.FUENTES_CARGAS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+
+CREATE TRIGGER ICTC.FUENTES_CARGAS_BI
+BEFORE INSERT ON ICTC.FUENTES_CARGAS
+FOR EACH ROW
+WHEN (NEW.ID IS NULL)
+BEGIN
+    SELECT ICTC.FUENTES_CARGAS_SEQ.NEXTVAL INTO :NEW.ID FROM DUAL;
+END;
+/
+
+DECLARE
+    v_trigger_invalido NUMBER;
+BEGIN
+    SELECT COUNT(*)
+      INTO v_trigger_invalido
+      FROM user_objects
+     WHERE object_name = 'FUENTES_CARGAS_BI'
+       AND object_type = 'TRIGGER'
+       AND status <> 'VALID';
+
+    IF v_trigger_invalido > 0 THEN
+        RAISE_APPLICATION_ERROR(-20003, 'Revisar USER_ERRORS para FUENTES_CARGAS_BI.');
+    END IF;
+END;
+/
+
+INSERT INTO ICTC.FUENTES_DATOS (CODIGO, NOMBRE)
+VALUES ('FACTURAS_ORACLE', 'Facturas Oracle NetSuite');
+
+COMMIT;

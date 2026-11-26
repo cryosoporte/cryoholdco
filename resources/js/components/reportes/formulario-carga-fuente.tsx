@@ -13,20 +13,20 @@ import { toast } from "@/components/ui/sonner";
 import { Spinner } from "@/components/ui/spinner";
 import { FormError } from "@/components/form-error";
 import { useErroresPeticion } from "@/hooks/use-errores-peticion";
-import type { FuenteDatos } from "./tipos";
+import { hayCargaActiva, type FuenteDatos } from "./tipos";
 
 /**
- * Sube el .xlsx de una fuente. Si el archivo es válido reemplaza todos sus
- * datos; si no, Laravel devuelve el error en `archivo` y no cambia nada.
+ * Sube el .xlsx de una fuente para reemplazar sus datos.
  */
 export function FormularioCargaFuente({ fuente }: { fuente: FuenteDatos }) {
     const formulario = useForm<{ archivo: File | null }>({ archivo: null });
     const inputArchivo = useRef<HTMLInputElement>(null);
     const { errorPeticion, opcionesPeticion } = useErroresPeticion();
     const idCampo = `archivo-${fuente.codigo}`;
+    const deshabilitado = formulario.processing || hayCargaActiva(fuente);
 
     function cargar(): void {
-        if (formulario.processing) {
+        if (deshabilitado) {
             return;
         }
 
@@ -36,6 +36,12 @@ export function FormularioCargaFuente({ fuente }: { fuente: FuenteDatos }) {
                 ...opcionesPeticion,
                 preserveScroll: true,
                 onFlash: (flash) => {
+                    if (flash.cargaFuenteRecibida) {
+                        toast.success("Carga recibida", {
+                            description: flash.cargaFuenteRecibida,
+                        });
+                    }
+
                     if (flash.fuenteCargada) {
                         toast.success("Fuente actualizada", {
                             description: `${flash.fuenteCargada.filas.toLocaleString("es-PE")} filas en ${flash.fuenteCargada.fuente}`,
@@ -76,7 +82,7 @@ export function FormularioCargaFuente({ fuente }: { fuente: FuenteDatos }) {
                             evento.target.files?.[0] ?? null,
                         )
                     }
-                    disabled={formulario.processing}
+                    disabled={deshabilitado}
                     aria-invalid={!!formulario.errors.archivo}
                     aria-describedby={`ayuda-${idCampo} error-${idCampo}`}
                 />
@@ -92,7 +98,7 @@ export function FormularioCargaFuente({ fuente }: { fuente: FuenteDatos }) {
             <Button
                 type="submit"
                 disabled={
-                    formulario.processing || formulario.data.archivo === null
+                    deshabilitado || formulario.data.archivo === null
                 }
                 className="w-fit cursor-pointer"
             >

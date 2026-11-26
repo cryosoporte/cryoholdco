@@ -36,6 +36,7 @@ class LectorXlsx
     public function leer(string $ruta, array $encabezados): Generator
     {
         $lector = new Reader(new Options(SHOULD_PRESERVE_EMPTY_ROWS: true));
+        $hojaLeida = false;
 
         try {
             $lector->open($ruta);
@@ -65,6 +66,8 @@ class LectorXlsx
                     yield $numeroFila => $registro;
                 }
 
+                $hojaLeida = true;
+
                 if ($indices === null) {
                     $this->indicesDeEncabezados([], $encabezados);
                 }
@@ -77,6 +80,12 @@ class LectorXlsx
             ]);
         } finally {
             $lector->close();
+
+            if (! $hojaLeida) {
+                // OpenSpout conserva el lector XML en un ciclo si se interrumpe la hoja.
+                unset($hoja, $lector);
+                gc_collect_cycles();
+            }
         }
     }
 

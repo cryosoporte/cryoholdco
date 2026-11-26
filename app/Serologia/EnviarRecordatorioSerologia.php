@@ -35,7 +35,7 @@ class EnviarRecordatorioSerologia
             ->where('C2.IDENTIFICACION', $identificacion)
             ->whereIn('C1.SERVICIO', AlcanceSerologia::SERVICIOS)
             ->where('C1.FECHA_CONTRATO', '>=', AlcanceSerologia::fechaInicio())
-            ->select(['C2.NOMBRE', 'C2.MAIL_CONTACTO', 'C1.NUMERO_BASE'])
+            ->select(['C2.MAIL_CONTACTO', 'C1.NUMERO_BASE'])
             ->first();
 
         abort_if($cliente === null, 404);
@@ -55,17 +55,9 @@ class EnviarRecordatorioSerologia
         }
 
         try {
-
-        Mail::mailer('sac_peru')
-            ->to($correo)
-            ->send(
-                (new RecordatorioSerologia($cliente->numero_base))
-                    ->from(
-                        config('mail.mailers.sac_peru.username'),
-                        'Servicio al Cliente',
-                    ),
+            Mail::mailer(app()->isProduction() ? 'sac_peru' : null)->to($correo)->send(
+                new RecordatorioSerologia($cliente->numero_base),
             );
- 
         } catch (Throwable $exception) {
             report($exception);
 

@@ -2,15 +2,25 @@
 
 namespace App\Reportes\Fuentes;
 
+use DateTimeImmutable;
+
 /**
  * Histórico de facturas exportado de Oracle NetSuite.
  *
  * Una fila por artículo: el ID interno se repite cuando una factura tiene
  * varios artículos, por eso la tabla no tiene clave primaria.
+ *
+ * Las anualidades traen en "Nota" el período que cubren, por ejemplo
+ * "MANTENIMIENTO ANUAL POR CRIOPRESERVACIÓN DE SANGRE 05/06/2023 04/06/2024"
+ * o "... 05/06/2023-04/06/2024". Al cargar, esas dos fechas se guardan en
+ * INICIO_PERIODO y FIN_PERIODO.
  */
-class FuenteFacturasOracle implements Fuente
+class FuenteFacturasOracle implements FuenteConColumnasCalculadas
 {
     public const CODIGO = 'FACTURAS_ORACLE';
+
+    /** Dos fechas dd/mm/aaaa al final de la nota, separadas por espacios o un guion. */
+    private const PERIODO_EN_NOTA = '~(\d{2}/\d{2}/\d{4})\s*-?\s*(\d{2}/\d{2}/\d{4})\s*$~';
 
     public function codigo(): string
     {
@@ -75,5 +85,44 @@ class FuenteFacturasOracle implements Fuente
             ColumnaFuente::fecha('INICIO COBERTURA', 'inicio_cobertura'),
             ColumnaFuente::fecha('FIN COBERTURA', 'fin_cobertura'),
         ];
+    }
+
+    /**
+     * @return list<ColumnaFuente>
+     */
+    public function columnasCalculadas(): array
+    {
+        return [
+            ColumnaFuente::fecha('Inicio del período (de Nota)', 'inicio_periodo'),
+            ColumnaFuente::fecha('Fin del período (de Nota)', 'fin_periodo'),
+        ];
+    }
+
+    /**
+     * @param  array<string, int|float|string|null>  $registro
+     * @return array{inicio_periodo: string|null, fin_periodo: string|null}
+     */
+    public function calcular(array $registro): array
+    {
+        $sinPeriodo = ['inicio_periodo' => null, 'fin_periodo' => null];
+
+        if (! is_string($registro['nota'] ?? null) || preg_match(self::PERIODO_EN_NOTA, $registro['nota'], $fechas) !== 1) {
+            return $sinPeriodo;
+        }
+
+        $inicio = $this->fecha($fechas[1]);
+        $fin = $this->fecha($fechas[2]);
+
+        return $inicio === null || $fin === null ? $sinPeriodo : ['inicio_periodo' => $inicio, 'fin_periodo' => $fin];
+    }
+
+    /**
+     * "05/06/2023" => "2023-06-05 00:00:00", o null si la fecha no existe (31/02/2026).
+     */
+    private function fecha(string $texto): ?string
+    {
+        $fecha = DateTimeImmutable::createFromFormat('!d/m/Y', $texto);
+
+        return $fecha !== false && $fecha->format('d/m/Y') === $texto ? $fecha->format('Y-m-d 00:00:00') : null;
     }
 }
