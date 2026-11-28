@@ -1,5 +1,6 @@
 import {
     ClipboardListIcon,
+    FileTextIcon,
     FlaskConicalIcon,
     UsersIcon,
     type LucideIcon,
@@ -20,6 +21,15 @@ export const modulosOperaciones: ModuloOperaciones[] = [
         descripcion: "Consulta estados, plazos y resultados de los clientes.",
         ruta: "serologia",
         icono: ClipboardListIcon,
+        nuevaPestana: false,
+        enMenuLateral: true,
+    },
+    {
+        titulo: "Informes",
+        descripcion:
+            "Consulta los contratos, revisa sus documentos de laboratorio y envíalos por correo al cliente.",
+        ruta: "informes",
+        icono: FileTextIcon,
         nuevaPestana: false,
         enMenuLateral: true,
     },

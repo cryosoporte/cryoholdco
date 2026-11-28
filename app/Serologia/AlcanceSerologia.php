@@ -11,6 +11,7 @@ class AlcanceSerologia
 {
     /** Servicios contratados que llevan prueba serológica: Sangre (S) y Tejido (T). */
     public const SERVICIOS = ['S', 'T'];
+
     public const ESTADO_CONTRATO = ['CON'];
 
     /**
