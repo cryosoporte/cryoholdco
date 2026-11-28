@@ -6,6 +6,8 @@ use App\Http\Controllers\Administracion\RolController;
 use App\Http\Controllers\Administracion\UsuarioController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LoginLaboratorioController;
+use App\Http\Controllers\Informes\DocumentosController;
+use App\Http\Controllers\Informes\InformesController;
 use App\Http\Controllers\Reportes\ComisionesController;
 use App\Http\Controllers\Reportes\FuenteController;
 use App\Http\Controllers\Reportes\LiquidacionesComisionesController;
@@ -56,6 +58,16 @@ Route::middleware('auth')->group(function () {
     // serología
     Route::get('/serologia', [SerologiaController::class, 'index'])->name('serologia');
     Route::post('/serologia/recordatorio', [SerologiaController::class, 'enviarRecordatorio'])->name('serologia.recordatorio');
+
+    // informes
+    Route::get('/informes', [InformesController::class, 'index'])->name('informes');
+    Route::prefix('/informes/documentos')->controller(DocumentosController::class)->name('informes.documentos')->group(function () {
+        Route::get('/', 'index');
+        Route::get('/ver', 'ver')->name('.ver');
+        Route::get('/vista-previa', 'vistaPrevia')->name('.vista-previa');
+        Route::post('/enviar', 'enviar')->name('.enviar');
+        Route::post('/enviar-masivo', 'enviarMasivo')->name('.enviar-masivo');
+    });
 
     // administración
     $autorizarModeloFaltante = fn (string $permiso): Closure => function (Request $request, ModelNotFoundException $exception) use ($permiso): never {

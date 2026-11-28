@@ -478,6 +478,86 @@ abstract class TestCase extends BaseTestCase
         }
     }
 
+    /**
+     * Prepara las tablas que usa el listado de Informes: contratos con su estado y su asesor,
+     * clientes con correo de contacto y las colectas de laboratorio.
+     */
+    protected function prepararInformes(): void
+    {
+        $this->prepararSerologia();
+
+        DB::connection()->getPdo()->setAttribute(PDO::ATTR_CASE, PDO::CASE_LOWER);
+
+        Schema::table('ven_clientes', function (Blueprint $table): void {
+            $table->string('mail_contacto')->nullable();
+            $table->string('apaterno')->nullable();
+            $table->string('celular_contacto')->nullable();
+        });
+        Schema::table('ven_contratos', function (Blueprint $table): void {
+            $table->string('estado_contrato')->default('CON');
+            $table->string('identificacion2')->nullable();
+            $table->string('liberacion')->nullable();
+            $table->string('vendedor')->nullable();
+        });
+        Schema::create('lab_colectas', function (Blueprint $table): void {
+            $table->string('no_cia');
+            $table->string('numero_contrato');
+            $table->date('fecha_colecta')->nullable();
+            $table->date('fecha_registro')->nullable();
+            $table->integer('flag_envio_correo')->nullable();
+            $table->dateTime('envio_fecha_correo')->nullable();
+            $table->string('usuario_envio')->nullable();
+        });
+        Schema::create('lab_colectas_info', function (Blueprint $table): void {
+            $table->string('no_cia');
+            $table->string('numero_contrato');
+        });
+        Schema::create('users', function (Blueprint $table): void {
+            $table->string('empresa');
+            $table->string('identificacion');
+            $table->string('nombres');
+        });
+    }
+
+    /**
+     * Un contrato de Informes: con su cliente, su correo de contacto y su colecta en LAB_COLECTAS.
+     *
+     * @param  array<string, mixed>  $contrato  columnas de VEN_CONTRATOS que cambian respecto al contrato base
+     * @param  array<string, mixed>  $cliente  columnas de VEN_CLIENTES que cambian respecto al cliente base
+     */
+    protected function crearContratoInformesPrueba(array $contrato = [], array $cliente = [], bool $conColecta = true, bool $enInfo = true): void
+    {
+        $contrato = [
+            'no_cia' => '001', 'numero_contrato' => 'PE-CR-2026-000001-1',
+            'numero_base' => 'PE-CR-2026-000001-0', 'identificacion1' => '12345678',
+            'codigo_documento1' => 'DI', 'servicio' => 'S', 'estado_contrato' => 'CON', 'liberacion' => 'APTO',
+            'fecha_contrato' => '2026-10-01', ...$contrato,
+        ];
+        $cliente = [
+            'no_cia' => $contrato['no_cia'], 'identificacion' => $contrato['identificacion1'],
+            'nombre' => 'Ana Ejemplo', 'nombre_corto' => 'Ana', 'mail_contacto' => 'ana@example.com', ...$cliente,
+        ];
+
+        if (! DB::table('ven_clientes')->where('no_cia', $cliente['no_cia'])->where('identificacion', $cliente['identificacion'])->exists()) {
+            DB::table('ven_clientes')->insert($cliente);
+        }
+
+        DB::table('ven_contratos')->insert($contrato);
+
+        if ($conColecta) {
+            DB::table('lab_colectas')->insert([
+                'no_cia' => $contrato['no_cia'], 'numero_contrato' => $contrato['numero_contrato'],
+                'fecha_colecta' => '2026-10-20', 'fecha_registro' => '2026-10-01',
+            ]);
+        }
+
+        if ($enInfo) {
+            DB::table('lab_colectas_info')->insert([
+                'no_cia' => $contrato['no_cia'], 'numero_contrato' => $contrato['numero_contrato'],
+            ]);
+        }
+    }
+
     protected function crearSedePrueba(string $laboratorio = '20330025213', string $sede = '01'): void
     {
         DB::table('cxp_proveedores')->insertOrIgnore([
