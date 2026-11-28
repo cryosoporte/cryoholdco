@@ -72,6 +72,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Cuenta remitente de Informes
+    |--------------------------------------------------------------------------
+    |
+    | Nombre del mailer de config/mail.php con el que se envían los documentos
+    | (sac_peru, soporte_ti...). Vacío: sac_peru en producción y el mailer por
+    | defecto en los demás entornos.
+    |
+    */
+
+    'mailer' => env('LABORATORIO_MAILER'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Marca del correo por empresa
     |--------------------------------------------------------------------------
     |

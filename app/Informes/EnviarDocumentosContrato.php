@@ -107,7 +107,7 @@ class EnviarDocumentosContrato
         }
 
         try {
-            Mail::mailer(app()->isProduction() ? 'sac_peru' : null)->to(config('laboratorio.correo_prueba') ?: $correo)->send(
+            Mail::mailer(config('laboratorio.mailer') ?: (app()->isProduction() ? 'sac_peru' : null))->to(config('laboratorio.correo_prueba') ?: $correo)->send(
                 new DocumentosContrato($empresa, $numeroBase, $archivos, $cuerpo),
             );
         } catch (Throwable $exception) {

@@ -56,6 +56,10 @@ return [
             'port' => env('MAIL_SOPORTE_TI_PORT', 587),
             'username' => env('MAIL_SOPORTE_TI_USERNAME'),
             'password' => env('MAIL_SOPORTE_TI_PASSWORD'),
+            'from' => [
+                'address' => env('MAIL_SOPORTE_TI_USERNAME'),
+                'name' => 'Soporte TI',
+            ],
             'timeout' => null,
         ],
         'smtp' => [
